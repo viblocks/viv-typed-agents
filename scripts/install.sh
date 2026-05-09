@@ -79,9 +79,33 @@ MANIFEST="$REPO_ROOT/MANIFEST.yaml"
 [ -f "$MANIFEST" ] || { echo "FATAL: MANIFEST.yaml not found at $MANIFEST" >&2; exit 2; }
 
 # ---------- runtime deps ----------
-for dep in git yq awk sed; do
+for dep in git awk sed; do
   command -v "$dep" >/dev/null 2>&1 || { echo "FATAL: $dep required" >&2; exit 2; }
 done
+
+# YAML reader: prefer yq; fallback to python3+yaml.
+YAML_READER=""
+if command -v yq >/dev/null 2>&1; then
+  YAML_READER="yq"
+elif command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+  YAML_READER="python"
+else
+  echo "FATAL: need either yq OR python3 with PyYAML to parse MANIFEST.yaml" >&2
+  echo "       brew install yq    # or:    pip3 install pyyaml" >&2
+  exit 2
+fi
+
+# yq_get <yq-expr> — read from MANIFEST. Works whether YAML_READER is yq or python.
+# yq expressions and jq expressions overlap for simple cases (.components, |, keys[]).
+yq_get() {
+  local expr="$1"
+  if [ "$YAML_READER" = "yq" ]; then
+    yq "$expr" "$MANIFEST"
+  else
+    # Convert YAML to JSON via python, then run jq.
+    python3 -c 'import yaml,json,sys; print(json.dumps(yaml.safe_load(open(sys.argv[1]))))' "$MANIFEST" | jq -r "$expr"
+  fi
+}
 
 # ---------- helpers ----------
 in_csv() {
@@ -95,17 +119,17 @@ in_csv() {
 }
 
 manifest_components() {
-  yq '.components | keys[]' "$MANIFEST"
+  yq_get '.components | keys[]'
 }
 
 component_field() {
   local comp="$1" field="$2"
-  yq ".components.\"$comp\".$field" "$MANIFEST"
+  yq_get ".components.\"$comp\".$field"
 }
 
 component_tiers() {
   local comp="$1"
-  yq ".components.\"$comp\".tiers[]" "$MANIFEST"
+  yq_get ".components.\"$comp\".tiers[]"
 }
 
 # ---------- selection logic ----------
