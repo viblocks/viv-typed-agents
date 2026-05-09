@@ -234,36 +234,37 @@ for comp in $(selected_components); do
       fi
       ;;
     viv-agents)
-      # Agents are top-level *.md files in viv-agents (backend-*, frontend-*, etc.).
-      # Skip repo metadata and meta files (README.md, framework-detection.md, etc.).
+      # Agents live under domain subfolders: backend/, frontend/, devops/, security/, testing/.
+      # Each subfolder contains <agent-name>.md files. Skip _shared/ (helpers),
+      # architecture/ (repo metadata), and repo README.md.
       if [ -n "$AGENTS_FILTER" ]; then
         IFS=, read -ra agents <<< "$AGENTS_FILTER"
         for agent in "${agents[@]}"; do
           agent="$(echo "$agent" | xargs)"
-          src="$CLONE_DIR/$agent.md"
-          if [ -f "$src" ]; then
-            cp "$src" "$DEST/"
+          # Search in domain subfolders.
+          found=$(find "$CLONE_DIR" -maxdepth 3 -name "${agent}.md" -type f \
+                  -not -path "*/.git/*" \
+                  -not -path "*/_shared/*" \
+                  -not -path "*/architecture/*" | head -1)
+          if [ -n "$found" ]; then
+            cp "$found" "$DEST/"
             echo "    + agent: $agent"
           else
-            found=$(find "$CLONE_DIR" -maxdepth 2 -name "${agent}.md" -type f -not -path "*/.git/*" -not -path "*/architecture/*" | head -1)
-            if [ -n "$found" ]; then
-              cp "$found" "$DEST/"
-              echo "    + agent: $agent"
-            else
-              echo "    ! agent not found: $agent" >&2
-            fi
+            echo "    ! agent not found: $agent" >&2
           fi
         done
       else
-        # All top-level .md files except known meta files.
-        for f in "$CLONE_DIR"/*.md; do
-          [ -f "$f" ] || continue
-          name=$(basename "$f")
-          case "$name" in
-            README.md|CLAUDE.md|framework-detection.md|NAMING.md) continue ;;
-            *) cp "$f" "$DEST/" ;;
-          esac
-        done
+        # All .md files inside domain subfolders. Skip _shared/, architecture/, repo README.
+        find "$CLONE_DIR" -maxdepth 3 -name '*.md' -type f \
+          -not -path "*/.git/*" \
+          -not -path "*/_shared/*" \
+          -not -path "*/architecture/*" \
+          -not -path "$CLONE_DIR/README.md" \
+          -not -path "$CLONE_DIR/CLAUDE.md" \
+          -exec cp {} "$DEST/" \;
+        # Drop any top-level README that snuck in (find -not -path with $CLONE_DIR/README.md
+        # only excludes the literal path; find-rel may still match).
+        rm -f "$DEST/README.md" "$DEST/CLAUDE.md" 2>/dev/null || true
       fi
       ;;
     viv-routing)
