@@ -200,16 +200,18 @@ for comp in $(selected_components); do
   DEST="$TARGET/$TARGET_PATH"
   mkdir -p "$DEST"
 
-  # Per-component deploy logic.
+  # Per-component deploy logic. Each case is responsible for placing files
+  # at paths the runtime loaders (routing-loader, workflow-loader, hooks)
+  # actually look for — NOT for replicating the upstream repo layout.
   case "$comp" in
     viv-skills)
+      # Skill areas live as top-level dirs in viv-skills (backend/, frontend/, devops/, etc.)
+      # Skip repo metadata: .git, architecture, logs, docs, CLAUDE.md, README.md, .gitignore.
       if [ -n "$SKILLS_FILTER" ]; then
-        # Granular skill selection.
         IFS=, read -ra skills <<< "$SKILLS_FILTER"
         for skill in "${skills[@]}"; do
           skill="$(echo "$skill" | xargs)"
-          # Search the skill folder under any area subdir.
-          found=$(find "$CLONE_DIR" -maxdepth 3 -type d -name "$skill" | head -1)
+          found=$(find "$CLONE_DIR" -maxdepth 3 -type d -name "$skill" -not -path "*/.git/*" | head -1)
           if [ -n "$found" ]; then
             cp -r "$found" "$DEST/"
             echo "    + skill: $skill"
@@ -218,12 +220,22 @@ for comp in $(selected_components); do
           fi
         done
       else
-        # Full skills tree (excluding repo metadata).
-        find "$CLONE_DIR" -mindepth 1 -maxdepth 1 -type d ! -name '.git' ! -name 'architecture' \
-          -exec cp -r {} "$DEST/" \;
+        for sub in "$CLONE_DIR"/*; do
+          name=$(basename "$sub")
+          case "$name" in
+            .git|architecture|logs|docs|CLAUDE.md|README.md|.gitignore|.gitattributes|LICENSE) continue ;;
+            *)
+              if [ -d "$sub" ]; then
+                cp -r "$sub" "$DEST/"
+              fi
+              ;;
+          esac
+        done
       fi
       ;;
     viv-agents)
+      # Agents are top-level *.md files in viv-agents (backend-*, frontend-*, etc.).
+      # Skip repo metadata and meta files (README.md, framework-detection.md, etc.).
       if [ -n "$AGENTS_FILTER" ]; then
         IFS=, read -ra agents <<< "$AGENTS_FILTER"
         for agent in "${agents[@]}"; do
@@ -233,8 +245,7 @@ for comp in $(selected_components); do
             cp "$src" "$DEST/"
             echo "    + agent: $agent"
           else
-            # Try area-prefixed
-            found=$(find "$CLONE_DIR" -name "${agent}.md" -type f | head -1)
+            found=$(find "$CLONE_DIR" -maxdepth 2 -name "${agent}.md" -type f -not -path "*/.git/*" -not -path "*/architecture/*" | head -1)
             if [ -n "$found" ]; then
               cp "$found" "$DEST/"
               echo "    + agent: $agent"
@@ -244,26 +255,70 @@ for comp in $(selected_components); do
           fi
         done
       else
-        find "$CLONE_DIR" -name '*.md' -type f -not -path "*/.git/*" -not -path "*/architecture/*" \
-          -exec cp {} "$DEST/" \;
+        # All top-level .md files except known meta files.
+        for f in "$CLONE_DIR"/*.md; do
+          [ -f "$f" ] || continue
+          name=$(basename "$f")
+          case "$name" in
+            README.md|CLAUDE.md|framework-detection.md|NAMING.md) continue ;;
+            *) cp "$f" "$DEST/" ;;
+          esac
+        done
       fi
       ;;
-    viv-routing|viv-workflows|viv-orchestration-rules)
-      # Copy the data + schema content; skip repo metadata (architecture/, migration/, etc.)
-      for sub in $(ls "$CLONE_DIR" 2>/dev/null); do
-        case "$sub" in
-          .git|architecture|migration|examples|README.md|NAMING.md) continue ;;
-          *) cp -r "$CLONE_DIR/$sub" "$DEST/" ;;
-        esac
-      done
+    viv-routing)
+      # Deploy a usable routing-table.json (from the full-stack example, which has
+      # the redesigned classifier-folded structure) plus the schema. Consumer can
+      # edit routing-table.json to fit their project paths/agents.
+      if [ -f "$CLONE_DIR/examples/full-stack.routing-table.json" ]; then
+        cp "$CLONE_DIR/examples/full-stack.routing-table.json" "$DEST/routing-table.json"
+        # Fix the relative $schema reference for the new location.
+        sed -i.bak 's|"\$schema": "../schema/|"$schema": "./schema/|' "$DEST/routing-table.json"
+        rm -f "$DEST/routing-table.json.bak"
+      elif [ -f "$CLONE_DIR/routing-table.template.json" ]; then
+        cp "$CLONE_DIR/routing-table.template.json" "$DEST/routing-table.json"
+      fi
+      [ -d "$CLONE_DIR/schema" ] && cp -r "$CLONE_DIR/schema" "$DEST/"
+      [ -f "$CLONE_DIR/NAMING.md" ] && cp "$CLONE_DIR/NAMING.md" "$DEST/"
+      ;;
+    viv-workflows)
+      # Flatten rules/<name>.template.json → workflows/<name>.json (the path
+      # workflow-loader expects). Schemas kept under schemas/ for validation.
+      mkdir -p "$DEST/schemas"
+      if [ -d "$CLONE_DIR/rules" ]; then
+        for f in "$CLONE_DIR"/rules/*.json; do
+          [ -f "$f" ] || continue
+          base=$(basename "$f" .template.json)
+          cp "$f" "$DEST/${base}.json"
+        done
+      fi
+      if [ -d "$CLONE_DIR/schemas" ]; then
+        cp -r "$CLONE_DIR"/schemas/* "$DEST/schemas/"
+      fi
+      # Also preserve the viblocks-style examples for reference (optional).
+      if [ -d "$CLONE_DIR/examples/viblocks-style" ]; then
+        mkdir -p "$DEST/examples/viblocks-style"
+        cp -r "$CLONE_DIR"/examples/viblocks-style/* "$DEST/examples/viblocks-style/"
+      fi
+      ;;
+    viv-orchestration-rules)
+      # CLAUDE.template.md at root + playbooks/ at root. Skip repo metadata.
+      [ -f "$CLONE_DIR/CLAUDE.template.md" ] && cp "$CLONE_DIR/CLAUDE.template.md" "$DEST/"
+      [ -d "$CLONE_DIR/playbooks" ] && cp -r "$CLONE_DIR/playbooks" "$DEST/"
       ;;
     viv-hooks)
-      # Copy hooks/ + lib/ + settings.json.fragment
-      for sub in hooks lib settings.json.fragment; do
-        if [ -e "$CLONE_DIR/$sub" ]; then
-          cp -r "$CLONE_DIR/$sub" "$DEST/"
-        fi
-      done
+      # Flatten hooks/<type>/* directly under DEST so paths are .claude/hooks/<type>/...
+      # NOT .claude/hooks/hooks/<type>/...
+      if [ -d "$CLONE_DIR/hooks" ]; then
+        for sub in "$CLONE_DIR"/hooks/*; do
+          [ -e "$sub" ] || continue
+          cp -r "$sub" "$DEST/"
+        done
+      fi
+      [ -d "$CLONE_DIR/lib" ] && cp -r "$CLONE_DIR/lib" "$DEST/"
+      [ -f "$CLONE_DIR/settings.json.fragment" ] && cp "$CLONE_DIR/settings.json.fragment" "$DEST/"
+      # Make hook scripts executable.
+      find "$DEST" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
       ;;
   esac
 done
