@@ -56,10 +56,10 @@ See `SPEC.md` for the full strategy. See `architecture/solid-audit.md` for the S
 |---|---|---|
 | Knowledge | [viv-skills](https://github.com/viblocks/viv-skills) | Extracted |
 | Roles | [viv-agents](https://github.com/viblocks/viv-agents) | Extracted |
-| Routing | viv-routing | Designed in SPEC, not extracted |
-| Workflows | viv-workflows | Designed in SPEC, not extracted |
-| Enforcement | viv-hooks | Designed in SPEC, not extracted |
-| Behavioral | viv-orchestration-rules | Designed in SPEC, not extracted |
+| Routing | [viv-routing](https://github.com/viblocks/viv-routing) | Extracted |
+| Workflows | [viv-workflows](https://github.com/viblocks/viv-workflows) | Extracted |
+| Enforcement | [viv-hooks](https://github.com/viblocks/viv-hooks) | Extracted |
+| Behavioral | [viv-orchestration-rules](https://github.com/viblocks/viv-orchestration-rules) | Extracted |
 
 ## Adoption
 
