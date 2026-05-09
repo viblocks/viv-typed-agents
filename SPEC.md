@@ -292,7 +292,7 @@ Each decision is documented in `architecture/decisions/`. Summary:
 
 ## 6. Inter-Component Contracts
 
-Detailed in `architecture/component-contracts.md`. Summary:
+Each repo's README + ADRs document its contracts in detail; the per-component summary follows:
 
 ```
 viv-skills exposes:
@@ -411,13 +411,18 @@ Documented in `migration/from-viblocks.md`. Summary order:
 
 ## 10. Outstanding Decisions
 
-Items not resolved by this spec; deferred to per-repo ADRs:
+Items not resolved by this spec; deferred to per-repo ADRs.
 
-- **viv-routing schema versioning** — how to evolve the routing-table format without breaking consumers
-- **viv-workflows DSL** — JSON or YAML for gate rules; pick one consistent across the repo
-- **viv-hooks language** — bash + Python (status quo) vs. exploring alternatives
-- **viv-orchestration-rules CLAUDE.md template structure** — section format, parameterization mechanism
-- **viv-typed-agents starter kit** — should this repo contain a runnable example consumer (e.g. a bare-bones project that vendored everything correctly)?
+### Resolved (2026-05-08)
+
+- ~~**viv-workflows DSL** — JSON or YAML for gate rules~~ → JSON; consistent across schemas, rules, and examples (see [viv-workflows](https://github.com/viblocks/viv-workflows)).
+- ~~**viv-orchestration-rules CLAUDE.md template structure**~~ → resolved by [viv-orchestration-rules ADR-001 (template-not-prescription)](https://github.com/viblocks/viv-orchestration-rules/blob/main/architecture/decisions/ADR-001-template-not-prescription.md) + the canonical `CLAUDE.template.md`.
+
+### Still open
+
+- **viv-routing schema versioning** — how to evolve the routing-table format without breaking consumers.
+- **viv-hooks language** — bash + Python (status quo) vs. exploring alternatives.
+- **viv-typed-agents starter kit** — should this repo contain a runnable example consumer (e.g. a bare-bones project that vendored everything correctly)? Smoke-tested via `/tmp/vendor-smoke/` (2026-05-08, 22/22 tests pass) but not yet committed as a starter kit artifact.
 
 ---
 
