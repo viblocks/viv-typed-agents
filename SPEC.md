@@ -396,16 +396,16 @@ The strategy **extends** AI-DLC and Superpowers; it does not replace them. A con
 
 ## 9. Migration from viblocks-ai
 
-Documented in `migration/from-viblocks.md`. Summary order:
+Documented in `migration/from-viblocks.md`. All six components are extracted and live; the extraction order followed dependency direction:
 
-1. `viv-skills` extracted (done)
-2. `viv-agents` extracted (done)
-3. `viv-routing` (next)
-4. `viv-workflows` (after routing — depends on stable agent contracts)
-5. `viv-orchestration-rules` (after workflows — references all preceding)
-6. `viv-hooks` (last — depends on stable contracts from all preceding)
+1. `viv-skills` ✓ extracted — knowledge content
+2. `viv-agents` ✓ extracted — declared contracts (`type`, `domain`, `behavior`) consumed by the rest
+3. `viv-routing` ✓ extracted — declarative data depending only on agents
+4. `viv-workflows` ✓ extracted — declarative data depending on routing + agents
+5. `viv-orchestration-rules` ✓ extracted — behavioral playbooks referencing all prior
+6. `viv-hooks` ✓ extracted — code repo consuming all prior contracts
 
-`viblocks-ai` migrates progressively: each component extraction is paired with viblocks-ai vendoring it back, ensuring continuous operation.
+The remaining migration step is the **re-vendor**: replacing viblocks-ai's in-place implementation with the redesigned components. End-to-end smoke validated 2026-05-08 in `/tmp/vendor-smoke/` (22/22 tests pass). See each repo's `migration/from-viblocks.md` for per-component re-vendor steps.
 
 ---
 
