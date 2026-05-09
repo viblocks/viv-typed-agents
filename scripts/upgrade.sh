@@ -39,16 +39,58 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MANIFEST="$REPO_ROOT/MANIFEST.yaml"
 
-for dep in git yq; do
-  command -v "$dep" >/dev/null 2>&1 || { echo "FATAL: $dep required" >&2; exit 2; }
-done
+command -v git >/dev/null 2>&1 || { echo "FATAL: git required" >&2; exit 2; }
 
-REPO_URL=$(yq ".components.\"$COMP\".repo" "$MANIFEST" 2>/dev/null || true)
+# YAML reader: prefer yq; fallback to python3+yaml.
+YAML_READER=""
+if command -v yq >/dev/null 2>&1; then
+  YAML_READER="yq"
+elif command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+  YAML_READER="python"
+else
+  echo "FATAL: need either yq OR python3 with PyYAML" >&2; exit 2;
+fi
+
+yq_get() {
+  if [ "$YAML_READER" = "yq" ]; then
+    yq "$1" "$MANIFEST"
+  else
+    python3 -c 'import yaml,json,sys; print(json.dumps(yaml.safe_load(open(sys.argv[1]))))' "$MANIFEST" | jq -r "$1"
+  fi
+}
+
+yq_set() {
+  # in-place YAML set via python (yq can do -i but python is the universal path).
+  local expr="$1" value="$2"
+  if [ "$YAML_READER" = "yq" ]; then
+    yq -i "$expr = \"$value\"" "$MANIFEST"
+  else
+    python3 -c '
+import sys, yaml
+path = sys.argv[1]
+key_path = sys.argv[2]   # e.g. ".components.\"viv-skills\".commit"  (yq syntax)
+value = sys.argv[3]
+data = yaml.safe_load(open(path))
+# Naive parser for the shapes we use: .components."<name>".<field> or .released_at
+parts = key_path.lstrip(".").split(".")
+obj = data
+for i, p in enumerate(parts[:-1]):
+    p = p.strip().strip("\"")
+    obj = obj[p]
+last = parts[-1].strip().strip("\"")
+obj[last] = value
+with open(path, "w") as f:
+    yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+' "$MANIFEST" "$expr" "$value"
+  fi
+}
+
+REPO_URL=$(yq_get ".components.\"$COMP\".repo" 2>/dev/null || true)
 [ -z "$REPO_URL" ] || [ "$REPO_URL" = "null" ] && {
   echo "FATAL: component $COMP not in MANIFEST" >&2; exit 2;
 }
 
-OLD_SHA=$(yq ".components.\"$COMP\".commit" "$MANIFEST")
+OLD_SHA=$(yq_get ".components.\"$COMP\".commit")
 
 # Resolve TARGET_REF to a commit SHA via remote.
 NEW_SHA=$(git ls-remote "$REPO_URL" "$TARGET_REF" 2>/dev/null | head -1 | awk '{print $1}')
@@ -70,11 +112,11 @@ if [ "$OLD_SHA" = "$NEW_SHA_SHORT" ]; then
 fi
 
 # Update MANIFEST in place.
-yq -i ".components.\"$COMP\".commit = \"$NEW_SHA_SHORT\"" "$MANIFEST"
+yq_set ".components.\"$COMP\".commit" "$NEW_SHA_SHORT"
 
 # Update released_at.
 TODAY=$(date -u +%Y-%m-%d)
-yq -i ".released_at = \"$TODAY\"" "$MANIFEST"
+yq_set ".released_at" "$TODAY"
 
 echo "Bumped $COMP: $OLD_SHA → $NEW_SHA_SHORT"
 echo "MANIFEST updated. Don't forget to:"
