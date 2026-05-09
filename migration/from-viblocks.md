@@ -8,12 +8,14 @@ This document describes the migration plan from viblocks-ai's monolithic `.claud
 |---|---|---|
 | viv-skills | ✓ Extracted and live | https://github.com/viblocks/viv-skills |
 | viv-agents | ✓ Extracted and live | https://github.com/viblocks/viv-agents |
-| viv-routing | □ Designed in SPEC, not extracted | Next |
-| viv-workflows | □ Designed in SPEC, not extracted | After routing |
-| viv-orchestration-rules | □ Designed in SPEC, not extracted | After workflows |
-| viv-hooks | □ Designed in SPEC, not extracted | Last (depends on stable contracts) |
+| viv-routing | ✓ Extracted and live | https://github.com/viblocks/viv-routing |
+| viv-workflows | ✓ Extracted and live | https://github.com/viblocks/viv-workflows |
+| viv-orchestration-rules | ✓ Extracted and live | https://github.com/viblocks/viv-orchestration-rules |
+| viv-hooks | ✓ Extracted and live | https://github.com/viblocks/viv-hooks |
 
-viblocks-ai still operates with its monolithic `.claude/` setup. The migration is incremental: each extraction is paired with viblocks-ai vendoring the new repo back, replacing its in-place implementation.
+All six components are now extracted and live as standalone repos. End-to-end smoke validated 2026-05-08 in `/tmp/vendor-smoke/` (22/22 tests pass).
+
+viblocks-ai still operates with its monolithic `.claude/` setup; the re-vendor (replacing the in-place implementation with the redesigned components) is the remaining migration step. See `## viblocks-ai re-vendor plan` below.
 
 ## Extraction order and rationale
 
