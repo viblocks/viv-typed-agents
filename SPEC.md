@@ -20,7 +20,7 @@ The strategy exists to solve a concrete problem: **generic LLM dispatch produces
 
 **Goal 3 — Audit trail:** Every change to a critical path must carry traceable provenance (issue ID, evidence of review chain). This enforces accountability without manual ceremony.
 
-**Goal 4 — Composability:** A consumer should be able to adopt the strategy incrementally. A small project can use just skills; a mature project can adopt the full stack including hooks and orchestration rules.
+**Goal 4 — Composability:** A consumer should be able to adopt the strategy incrementally. The product is **one installable** (viv-typed-agents); the tier flag at install time selects the component subset. Per [ADR-RD-010](architecture/decisions/ADR-RD-010-product-composition.md), three granularity levels exist: whole product (`install.sh --tier N`), component subset (`--components`/`--skills`/`--agents` flags), and surgical use (`cp -r` from the public sub-repos). A small project installs at T1 (skills only); a mature project installs at T5 (full system).
 
 ### 1.2 Architectural divergence from viblocks-ai
 
@@ -331,15 +331,15 @@ viv-hooks exposes:
 
 ## 7. Composition Tiers
 
-Five tiers of progressive adoption. Each tier is independent — a project can settle at T2 if T3+ is unnecessary.
+Five tiers of progressive adoption. Per [ADR-RD-010](architecture/decisions/ADR-RD-010-product-composition.md), tiers are **installer configurations** — `scripts/install.sh --tier N` deploys the right component subset. Each tier is independent — a project can settle at T2 if T3+ is unnecessary, and re-run the installer with a higher `--tier` later.
 
 ```mermaid
 graph LR
-    T1["TIER 1<br/>viv-skills only"]
-    T2["TIER 2<br/>plus viv-agents<br/>behavioral dispatch"]
-    T3["TIER 3<br/>plus viv-routing<br/>plus viv-workflows<br/>declarative orchestration"]
-    T4["TIER 4<br/>plus viv-hooks<br/>structural enforcement"]
-    T5["TIER 5<br/>plus viv-orchestration-rules<br/>full system"]
+    T1["TIER 1<br/>--tier 1<br/>skills"]
+    T2["TIER 2<br/>--tier 2<br/>+ agents"]
+    T3["TIER 3<br/>--tier 3<br/>+ routing<br/>+ workflows"]
+    T4["TIER 4<br/>--tier 4<br/>+ hooks"]
+    T5["TIER 5<br/>--tier 5 (default)<br/>+ orchestration-rules"]
 
     T1 --> T2
     T2 --> T3
