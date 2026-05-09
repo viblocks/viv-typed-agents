@@ -1,0 +1,69 @@
+# MANIFEST.yaml — viv-typed-agents component composition
+#
+# Per ADR-RD-010, viv-typed-agents is the installable product. This file
+# pins each internal component to a specific commit SHA. scripts/install.sh
+# reads this manifest to deploy components to the consumer's project.
+#
+# Bumping a component's commit:
+#   ./scripts/upgrade.sh <component-name>
+#   git commit -am "deps(<component>): bump to <new-sha>"
+
+schema_version: "1.0"
+strategy_version: "0.1.0"
+released_at: "2026-05-09"
+
+components:
+
+  viv-skills:
+    repo: https://github.com/viblocks/viv-skills
+    commit: 290037b
+    role: knowledge content (domain patterns, anti-patterns, references)
+    target_path: .claude/skills/
+    tiers: [1, 2, 3, 4, 5]
+
+  viv-agents:
+    repo: https://github.com/viblocks/viv-agents
+    commit: 47e7299
+    role: typed agent declarations (frontmatter + system prompts)
+    target_path: .claude/agents/
+    tiers: [2, 3, 4, 5]
+    requires: [viv-skills]
+
+  viv-routing:
+    repo: https://github.com/viblocks/viv-routing
+    commit: f6a3e63
+    role: path-to-agent map with embedded enforcement classification
+    target_path: .claude/routing/
+    tiers: [3, 4, 5]
+    requires: [viv-agents]
+
+  viv-workflows:
+    repo: https://github.com/viblocks/viv-workflows
+    commit: 281842d
+    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings)
+    target_path: .claude/workflows/
+    tiers: [3, 4, 5]
+    requires: [viv-agents]
+
+  viv-hooks:
+    repo: https://github.com/viblocks/viv-hooks
+    commit: 99c56f8
+    role: structural enforcement (deny/advisory/refinement/lifecycle hooks)
+    target_path: .claude/hooks/
+    tiers: [4, 5]
+    requires: [viv-routing, viv-workflows]
+
+  viv-orchestration-rules:
+    repo: https://github.com/viblocks/viv-orchestration-rules
+    commit: 87eafba
+    role: behavioral playbooks (CLAUDE.md template + dispatch protocols)
+    target_path: .claude/orchestration/
+    tiers: [5]
+    requires: [viv-routing, viv-workflows]
+
+# Tier definitions:
+#   1 — Skills only (knowledge content; human-driven lookup)
+#   2 — + Agents (LLM dispatches typed agents behaviorally)
+#   3 — + Routing + Workflows (declarative orchestration)
+#   4 — + Hooks (structural enforcement; T3 + hard-deny)
+#   5 — + Orchestration rules (full system; CLAUDE.md template)
