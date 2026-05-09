@@ -47,7 +47,7 @@ components:
 
   viv-hooks:
     repo: https://github.com/viblocks/viv-hooks
-    commit: 99c56f8
+    commit: 534220e
     role: structural enforcement (deny/advisory/refinement/lifecycle hooks)
     target_path: .claude/hooks/
     tiers: [4, 5]
