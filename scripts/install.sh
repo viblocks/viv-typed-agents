@@ -316,10 +316,17 @@ for comp in $(selected_components); do
           cp -r "$sub" "$DEST/"
         done
       fi
-      [ -d "$CLONE_DIR/lib" ] && cp -r "$CLONE_DIR/lib" "$DEST/"
+      # IMPORTANT: lib/ goes to .claude/lib/ (sibling of hooks/) — NOT inside hooks/.
+      # The hook scripts resolve $LIB_DIR as $HOOK_DIR/../../lib which from
+      # .claude/hooks/<type>/<hook>.sh evaluates to .claude/lib (matching the
+      # upstream layout where lib is sibling of hooks/).
+      if [ -d "$CLONE_DIR/lib" ]; then
+        cp -r "$CLONE_DIR/lib" "$TARGET/.claude/"
+      fi
       [ -f "$CLONE_DIR/settings.json.fragment" ] && cp "$CLONE_DIR/settings.json.fragment" "$DEST/"
       # Make hook scripts executable.
       find "$DEST" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
+      find "$TARGET/.claude/lib" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
       ;;
   esac
 done
