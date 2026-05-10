@@ -27,7 +27,9 @@ These disciplines materially increase the quality of typed-agent dispatch, chang
 
 ## Decision
 
-Extract the **full** `rules/` tree from `fabianyvidal/aidlc-orchestrator` into `viv-orchestration-rules/playbooks/`, sanitized to align with our SOLID architecture.
+Extract the **full** `rules/` tree from `fabianyvidal/aidlc-orchestrator` into `viv-orchestration-rules/rules/`, sanitized to align with our SOLID architecture.
+
+> **Naming follow-up (post-extension):** the destination directory was originally named `playbooks/` (and `_common/` inside) at the moment of this ADR. After the extension landed, the directory was renamed to `rules/` (and `common/` inside) in viv-orchestration-rules commit `845062b` to match the upstream source naming and the actual content (declarative rules, not procedural playbooks).
 
 Sanitization is mechanical and repo-wide:
 
@@ -35,7 +37,7 @@ Sanitization is mechanical and repo-wide:
 |---|---|
 | Agent renames `nestjs-*`→`backend-*`, `reactjs-*`→`frontend-*` (with tier preservation) | viv-routing ADR-003 (stack-prefix naming) |
 | Routing path `.claude/context/routing-table.json`→`.claude/routing/routing-table.json` | viv-routing convention |
-| Link path renames `common/X.md`→`_common/X.md`, `<phase>/X.md`→`ai-dlc/<phase>/X.md` | viv-orchestration-rules layout |
+| Link path renames `common/X.md`→`common/X.md`, `<phase>/X.md`→`ai-dlc/<phase>/X.md` | viv-orchestration-rules layout |
 | Repo URL renames where ownership applies | Network identity |
 | Architecture note injection where `.claude/context/artifact-classifier.json` is referenced | ADR-RD-004 (classifier folded) |
 

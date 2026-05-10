@@ -55,8 +55,8 @@ components:
 
   viv-orchestration-rules:
     repo: https://github.com/viblocks/viv-orchestration-rules
-    commit: 158cea8
-    role: behavioral playbooks (CLAUDE.md template + dispatch protocols + AI-DLC + SP integration extracted from aidlc-orchestrator)
+    commit: 845062b
+    role: behavioral rules (CLAUDE.md template + dispatch protocols + AI-DLC + SP integration extracted from aidlc-orchestrator). NOTE post-rename layout uses rules/ (was playbooks/) and rules/common/ (was rules/_common/).
     target_path: .claude/orchestration/
     tiers: [5]
     requires: [viv-routing, viv-workflows]

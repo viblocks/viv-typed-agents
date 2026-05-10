@@ -141,11 +141,11 @@ graph LR
 **You get:**
 - All of T1+T2+T3+T4
 - `.claude/orchestration/CLAUDE.template.md` — root CLAUDE.md template with IRON LAW, dispatch protocol, change flow integration
-- `.claude/orchestration/playbooks/dispatch-protocol.md`
-- `.claude/orchestration/playbooks/post-implementation-chain.md`
-- `.claude/orchestration/playbooks/ai-dlc-integration.md`
-- `.claude/orchestration/playbooks/superpowers-integration.md`
-- `.claude/orchestration/playbooks/issue-driven-flow.md`
+- `.claude/orchestration/rules/dispatch-protocol.md`
+- `.claude/orchestration/rules/post-implementation-chain.md`
+- `.claude/orchestration/rules/ai-dlc-integration.md`
+- `.claude/orchestration/rules/superpowers-integration.md`
+- `.claude/orchestration/rules/issue-driven-flow.md`
 
 **Internal components deployed:** all 6.
 
