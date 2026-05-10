@@ -39,8 +39,8 @@ components:
 
   viv-workflows:
     repo: https://github.com/viblocks/viv-workflows
-    commit: 281842d
-    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings)
+    commit: 181aad0
+    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings). Decoupled from AI-DLC per ADR-RD-012.
     target_path: .claude/workflows/
     tiers: [3, 4, 5]
     requires: [viv-agents]
