@@ -1,8 +1,10 @@
 # ADR-RD-011 — Extend orchestration-rules from aidlc-orchestrator
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-RD-012](ADR-RD-012-separate-aidlc-orchestrator.md)
 **Date:** 2026-05-09
 **Category:** Strategic (system-wide framing)
+
+> **Superseded note (2026-05-09):** post-extension SOLID review identified that this ADR's decision merged two abstractions (typed-agents dispatch + AI-DLC SDLC orchestration) into one repo, violating SRP/DIP/ISP. ADR-RD-012 corrects this by splitting AI-DLC content into a separate `viblocks/aidlc-orchestrator` repo with DIP injection. RD-011 remains for archaeological reference.
 
 ## Context
 
