@@ -284,6 +284,7 @@ for comp in $(selected_components); do
           found=$(find "$CLONE_DIR" -maxdepth 3 -type d -name "$skill" -not -path "*/.git/*" | head -1)
           if [ -n "$found" ]; then
             cp -r "$found" "$DEST/"
+            install_manifest_register "$comp" "$TARGET_PATH/$skill/"
             echo "    + skill: $skill"
           else
             echo "    ! skill not found: $skill" >&2
@@ -297,6 +298,7 @@ for comp in $(selected_components); do
             *)
               if [ -d "$sub" ]; then
                 cp -r "$sub" "$DEST/"
+                install_manifest_register "$comp" "$TARGET_PATH/$name/"
               fi
               ;;
           esac
