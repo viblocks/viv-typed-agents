@@ -391,8 +391,19 @@ for comp in $(selected_components); do
       ;;
     viv-orchestration-rules)
       # CLAUDE.template.md at root + playbooks/ at root. Skip repo metadata.
-      [ -f "$CLONE_DIR/CLAUDE.template.md" ] && cp "$CLONE_DIR/CLAUDE.template.md" "$DEST/"
-      [ -d "$CLONE_DIR/playbooks" ] && cp -r "$CLONE_DIR/playbooks" "$DEST/"
+      if [ -f "$CLONE_DIR/CLAUDE.template.md" ]; then
+        cp "$CLONE_DIR/CLAUDE.template.md" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/CLAUDE.template.md"
+      fi
+      if [ -d "$CLONE_DIR/playbooks" ]; then
+        cp -r "$CLONE_DIR/playbooks" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/playbooks/"
+      fi
+      # Newer revisions of viv-orchestration-rules also ship a rules/ subdir.
+      if [ -d "$CLONE_DIR/rules" ]; then
+        cp -r "$CLONE_DIR/rules" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/rules/"
+      fi
       ;;
     viv-hooks)
       # Flatten hooks/<type>/* directly under DEST so paths are .claude/hooks/<type>/...
