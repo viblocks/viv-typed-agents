@@ -352,11 +352,19 @@ for comp in $(selected_components); do
         # Fix the relative $schema reference for the new location.
         sed -i.bak 's|"\$schema": "../schema/|"$schema": "./schema/|' "$DEST/routing-table.json"
         rm -f "$DEST/routing-table.json.bak"
+        install_manifest_register "$comp" "$TARGET_PATH/routing-table.json"
       elif [ -f "$CLONE_DIR/routing-table.template.json" ]; then
         cp "$CLONE_DIR/routing-table.template.json" "$DEST/routing-table.json"
+        install_manifest_register "$comp" "$TARGET_PATH/routing-table.json"
       fi
-      [ -d "$CLONE_DIR/schema" ] && cp -r "$CLONE_DIR/schema" "$DEST/"
-      [ -f "$CLONE_DIR/NAMING.md" ] && cp "$CLONE_DIR/NAMING.md" "$DEST/"
+      if [ -d "$CLONE_DIR/schema" ]; then
+        cp -r "$CLONE_DIR/schema" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/schema/"
+      fi
+      if [ -f "$CLONE_DIR/NAMING.md" ]; then
+        cp "$CLONE_DIR/NAMING.md" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/NAMING.md"
+      fi
       ;;
     viv-workflows)
       # Flatten rules/<name>.template.json → workflows/<name>.json (the path
