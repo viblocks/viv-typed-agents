@@ -110,7 +110,70 @@ if [ -z "$SELECTED_COMPONENTS" ]; then
   exit 0
 fi
 
-# (Subsequent tasks fill in plan + execution.)
-echo "Selected components:"
-echo "$SELECTED_COMPONENTS" | sed 's/^/  - /'
+# Determine full vs. partial uninstall.
+# "Full" = no --components given, OR --components covers every entry in
+# the manifest (set equality). The wizard outputs (settings.json
+# reverse-merge, CLAUDE.md unmark) only run on full uninstall.
+SELECTED_SORTED=$(echo "$SELECTED_COMPONENTS" | sort)
+ALL_SORTED=$(echo "$ALL_COMPONENTS" | sort)
+if [ "$SELECTED_SORTED" = "$ALL_SORTED" ]; then
+  UNINSTALL_MODE="full"
+else
+  UNINSTALL_MODE="partial"
+fi
+
+# Snapshot the settings.json.fragment (used by reverse-merge AFTER directory
+# removal would have wiped it). Only relevant for full uninstall.
+FRAGMENT_SRC="$CLAUDE_DIR/hooks/settings.json.fragment"
+FRAGMENT_SNAPSHOT=""
+if [ "$UNINSTALL_MODE" = "full" ] && [ "$KEEP_CONFIG" -eq 0 ] && [ -f "$FRAGMENT_SRC" ]; then
+  FRAGMENT_SNAPSHOT=$(mktemp)
+  cp "$FRAGMENT_SRC" "$FRAGMENT_SNAPSHOT"
+fi
+
+# Build and print the plan.
+echo "Uninstall plan ($UNINSTALL_MODE):"
+echo ""
+echo "  Components and paths to remove:"
+while IFS= read -r comp; do
+  [ -n "$comp" ] || continue
+  jq -r --arg c "$comp" '.components[$c].paths[] | "    ✗ \(.)"' "$MANIFEST_PATH"
+done <<< "$SELECTED_COMPONENTS"
+
+if [ "$UNINSTALL_MODE" = "full" ] && [ "$KEEP_CONFIG" -eq 0 ]; then
+  echo ""
+  echo "  Wizard outputs to reverse:"
+  if [ -n "$FRAGMENT_SNAPSHOT" ] && [ -f "$CLAUDE_DIR/settings.json" ]; then
+    echo "    ⟲ .claude/settings.json (reverse-merge)"
+  fi
+  if [ -f "$TARGET/CLAUDE.md" ] && grep -qF "<!-- viv-typed-agents:BEGIN -->" "$TARGET/CLAUDE.md" 2>/dev/null; then
+    echo "    ⟲ CLAUDE.md (remove managed block)"
+  fi
+fi
+
+echo ""
+echo "  Transient state to remove (if present):"
+echo "    ✗ .claude/.subagent-active.json"
+echo "    ✗ .claude/.subagent-active.json.lock"
+
+echo ""
+if [ "$UNINSTALL_MODE" = "full" ]; then
+  echo "  Manifest:"
+  echo "    ✗ .claude/.install-manifest.json (full uninstall)"
+else
+  echo "  Manifest:"
+  echo "    ⟲ .claude/.install-manifest.json (rewrite — remove only selected components)"
+fi
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo ""
+  echo "Dry-run complete. No changes made."
+  [ -n "$FRAGMENT_SNAPSHOT" ] && rm -f "$FRAGMENT_SNAPSHOT"
+  exit 0
+fi
+
+# (Subsequent tasks fill in execution.)
+echo ""
+echo "(execution not yet implemented — TODO Task 16+)"
+[ -n "$FRAGMENT_SNAPSHOT" ] && rm -f "$FRAGMENT_SNAPSHOT"
 exit 0
