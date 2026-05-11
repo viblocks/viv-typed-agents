@@ -35,5 +35,18 @@ else
 fi
 
 echo
+echo "--- discover-services.sh ---"
+if [ -x lib/discover-services.sh ]; then
+  out=$(bash lib/discover-services.sh "$FIXTURES/brownfield-crypto" | sort)
+  expected="services/core
+services/ui"
+  [ "$out" = "$expected" ] && ok "brownfield-crypto services discovered" || ko "got: $out"
+  out=$(bash lib/discover-services.sh "$FIXTURES/greenfield")
+  [ -z "$out" ] && ok "greenfield: no services" || ko "expected empty, got: $out"
+else
+  ko "lib/discover-services.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
