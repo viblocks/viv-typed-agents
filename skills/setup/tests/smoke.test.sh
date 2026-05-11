@@ -77,5 +77,29 @@ else
 fi
 
 echo
+echo "--- write-routing.sh ---"
+if [ -x lib/write-routing.sh ]; then
+  TMP=$(mktemp -d)
+  PLAN=$(mktemp)
+  cat > "$PLAN" <<'EOF'
+[
+  {"domain":"backend","paths":["services/core/**"],"implementer":"backend-crypto-implementer","reviewer":"backend-crypto-reviewer","enforced":true},
+  {"domain":"frontend","paths":["services/ui/**"],"implementer":"frontend-crypto-implementer","reviewer":"frontend-crypto-reviewer","enforced":true}
+]
+EOF
+  bash lib/write-routing.sh "$TMP/routing-table.json" "$PLAN"
+  count=$(jq '.routes | length' "$TMP/routing-table.json")
+  [ "$count" = "2" ] && ok "write fresh routing-table" || ko "expected 2 routes, got $count"
+
+  # Idempotency: re-running should not duplicate.
+  bash lib/write-routing.sh "$TMP/routing-table.json" "$PLAN"
+  count=$(jq '.routes | length' "$TMP/routing-table.json")
+  [ "$count" = "2" ] && ok "idempotent re-run" || ko "expected 2 routes after re-run, got $count"
+  rm -rf "$TMP" "$PLAN"
+else
+  ko "lib/write-routing.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
