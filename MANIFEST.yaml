@@ -61,6 +61,14 @@ components:
     tiers: [5]
     requires: [viv-routing, viv-workflows]
 
+  viv-typed-agents-setup:
+    repo: <self>
+    commit: <self>
+    role: post-install configuration wizard (skill). Lives in this product repo (not a separate component).
+    target_path: .claude/skills/setup/
+    tiers: [3, 4, 5]
+    source_path: skills/setup/
+
 # Tier definitions:
 #   1 — Skills only (knowledge content; human-driven lookup)
 #   2 — + Agents (LLM dispatches typed agents behaviorally)
