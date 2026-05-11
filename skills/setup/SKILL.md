@@ -136,7 +136,15 @@ if [ -f .claude/hooks/settings.json.fragment ]; then
 fi
 ```
 
-Conditionally adapt CLAUDE.md:
+Conditionally adapt CLAUDE.md. The script supports three modes:
+1. **Fresh file** — output does not exist: render template and write,
+   wrapped in `<!-- viv-typed-agents:BEGIN -->` / `<!-- viv-typed-agents:END -->`
+   markers.
+2. **Existing file, no markers** — append the rendered managed block at the
+   end of the existing file; content above is preserved byte-for-byte.
+3. **Existing file with markers** — replace the content between the markers
+   with the freshly rendered template. Idempotent: re-running produces the
+   same file, and content outside the markers is left untouched.
 ```bash
 if [ -f .claude/orchestration/CLAUDE.template.md ]; then
   project_name=$(basename "$(pwd)")
@@ -152,7 +160,7 @@ Print a summary:
 Setup complete:
   ✓ .claude/routing/routing-table.json   (N routes)
   ✓ .claude/settings.json                (merged or skipped — say which)
-  ✓ CLAUDE.md                            (adapted or skipped — say which)
+  ✓ CLAUDE.md                            (created, appended, or refreshed — say which)
 
 Next: dispatch a typed agent. Example: ask Claude Code to implement
 something in services/core — it will route to the configured backend
@@ -162,6 +170,6 @@ implementer.
 ## Error handling rules
 
 - Never write a partial routing-table. If any agent lookup fails after the user confirms the plan, abort before calling write-routing.sh.
-- Never overwrite a hand-edited CLAUDE.md. Skip with warning.
+- Never touch content outside the `<!-- viv-typed-agents:BEGIN/END -->` markers in CLAUDE.md. The managed block is the only zone the wizard owns; everything else (existing project rules, graphify navigation, custom conventions) is preserved byte-for-byte across mode 2 (initial append) and mode 3 (idempotent refresh).
 - Never silently substitute generic agents for missing business-domain agents.
 - If the user picks a business domain that lacks full coverage, list every missing agent and offer the three options from the spec.
