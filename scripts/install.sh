@@ -85,8 +85,10 @@ declare -a INSTALL_MANIFEST_ENTRIES  # one "comp<TAB>relpath" per line
 
 install_manifest_register() {
   local comp="$1" relpath="$2"
-  # Strip any duplicate leading/trailing slash
+  # Strip leading/trailing slash and collapse internal duplicates.
+  # MANIFEST.yaml target_path entries end in '/', so naive concat produces '//'.
   relpath="${relpath#/}"; relpath="${relpath%/}"
+  while [[ "$relpath" == *"//"* ]]; do relpath="${relpath//\/\//\/}"; done
   INSTALL_MANIFEST_ENTRIES+=("$comp"$'\t'"$relpath")
 }
 
