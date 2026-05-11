@@ -172,8 +172,32 @@ if [ "$DRY_RUN" -eq 1 ]; then
   exit 0
 fi
 
-# (Subsequent tasks fill in execution.)
 echo ""
-echo "(execution not yet implemented — TODO Task 16+)"
+echo "Executing..."
+
+removed_count=0
+while IFS= read -r comp; do
+  [ -n "$comp" ] || continue
+  while IFS= read -r relpath; do
+    [ -n "$relpath" ] || continue
+    abs="$TARGET/$relpath"
+    if [ ! -e "$abs" ]; then
+      echo "  ⊘ $relpath (already removed)"
+      continue
+    fi
+    if [ -d "$abs" ]; then
+      rm -rf "$abs" || { echo "FATAL: failed to remove directory $abs" >&2; exit 1; }
+      echo "  ✗ $relpath (directory)"
+    else
+      rm -f "$abs" || { echo "FATAL: failed to remove file $abs" >&2; exit 1; }
+      echo "  ✗ $relpath (file)"
+    fi
+    removed_count=$((removed_count + 1))
+  done < <(jq -r --arg c "$comp" '.components[$c].paths[]' "$MANIFEST_PATH")
+done <<< "$SELECTED_COMPONENTS"
+
+# (Subsequent tasks: reverse-merge, unmark, cleanup, manifest update.)
+echo ""
+echo "Removed $removed_count paths."
 [ -n "$FRAGMENT_SNAPSHOT" ] && rm -f "$FRAGMENT_SNAPSHOT"
 exit 0
