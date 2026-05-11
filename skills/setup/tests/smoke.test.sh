@@ -48,5 +48,17 @@ else
 fi
 
 echo
+echo "--- classify-layer.sh ---"
+if [ -x lib/classify-layer.sh ]; then
+  SKILLS="$FIXTURES/_skills"
+  out=$(bash lib/classify-layer.sh "$FIXTURES/brownfield-crypto" "services/core" "$SKILLS")
+  [ "$out" = "backend" ] && ok "services/core -> backend" || ko "got: $out"
+  out=$(bash lib/classify-layer.sh "$FIXTURES/brownfield-crypto" "services/ui" "$SKILLS")
+  [ "$out" = "frontend" ] && ok "services/ui -> frontend" || ko "got: $out"
+else
+  ko "lib/classify-layer.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
