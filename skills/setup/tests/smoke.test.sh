@@ -179,5 +179,75 @@ else
 fi
 
 echo
+echo "--- unmerge-settings.sh ---"
+if [ -x lib/unmerge-settings.sh ]; then
+  TMP=$(mktemp -d)
+  echo '{"theme":"dark","hooks":{"PreToolUse":[{"name":"deny-class-a"},{"name":"user-custom-hook"}]}}' > "$TMP/settings.json"
+  echo '{"hooks":{"PreToolUse":[{"name":"deny-class-a"}]}}' > "$TMP/fragment.json"
+  bash lib/unmerge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  theme=$(jq -r '.theme' "$TMP/settings.json")
+  hooks_len=$(jq '.hooks.PreToolUse | length' "$TMP/settings.json")
+  hook_name=$(jq -r '.hooks.PreToolUse[0].name' "$TMP/settings.json")
+  if [ "$theme" = "dark" ] && [ "$hooks_len" = "1" ] && [ "$hook_name" = "user-custom-hook" ]; then
+    ok "unmerge: user keys preserved + fragment entry removed"
+  else
+    ko "unmerge failed (theme=$theme hooks_len=$hooks_len hook_name=$hook_name)"
+  fi
+
+  prev=$(md5 -q "$TMP/settings.json" 2>/dev/null || md5sum "$TMP/settings.json" | cut -d' ' -f1)
+  bash lib/unmerge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  next=$(md5 -q "$TMP/settings.json" 2>/dev/null || md5sum "$TMP/settings.json" | cut -d' ' -f1)
+  [ "$prev" = "$next" ] && ok "unmerge idempotent" || ko "unmerge not idempotent"
+
+  echo '{"hooks":{"PreToolUse":[{"name":"deny-class-a"}]}}' > "$TMP/settings.json"
+  bash lib/unmerge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  [ ! -f "$TMP/settings.json" ] && ok "unmerge: empty {} → file removed" || ko "empty unmerge failed"
+
+  rm -rf "$TMP"
+else
+  ko "lib/unmerge-settings.sh not found"
+fi
+
+echo
+echo "--- unmark-claude-md.sh ---"
+if [ -x lib/unmark-claude-md.sh ]; then
+  TMP=$(mktemp -d)
+
+  cat > "$TMP/CLAUDE.md" <<'EOF'
+# Project conventions
+Some user content above.
+<!-- viv-typed-agents:BEGIN -->
+Managed content here.
+<!-- viv-typed-agents:END -->
+More user content below.
+EOF
+  bash lib/unmark-claude-md.sh "$TMP/CLAUDE.md"
+  if grep -qF "Project conventions" "$TMP/CLAUDE.md" \
+     && grep -qF "More user content below" "$TMP/CLAUDE.md" \
+     && ! grep -qF "Managed content here" "$TMP/CLAUDE.md" \
+     && ! grep -qF "viv-typed-agents:BEGIN" "$TMP/CLAUDE.md"; then
+    ok "unmark: block removed, content outside preserved"
+  else
+    ko "unmark removal failed"
+  fi
+
+  prev=$(cat "$TMP/CLAUDE.md")
+  bash lib/unmark-claude-md.sh "$TMP/CLAUDE.md"
+  [ "$(cat "$TMP/CLAUDE.md")" = "$prev" ] && ok "unmark idempotent" || ko "unmark not idempotent"
+
+  cat > "$TMP/CLAUDE.md" <<'EOF'
+<!-- viv-typed-agents:BEGIN -->
+only managed
+<!-- viv-typed-agents:END -->
+EOF
+  bash lib/unmark-claude-md.sh "$TMP/CLAUDE.md" --remove-if-empty
+  [ ! -f "$TMP/CLAUDE.md" ] && ok "unmark --remove-if-empty deletes empty file" || ko "remove-if-empty failed"
+
+  rm -rf "$TMP"
+else
+  ko "lib/unmark-claude-md.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
