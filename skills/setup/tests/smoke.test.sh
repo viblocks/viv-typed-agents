@@ -60,5 +60,22 @@ else
 fi
 
 echo
+echo "--- lookup-agent.sh ---"
+if [ -x lib/lookup-agent.sh ]; then
+  AGENTS="$FIXTURES/_agents"
+  out=$(bash lib/lookup-agent.sh "$AGENTS" backend crypto implementer)
+  [ "$out" = "backend-crypto-implementer" ] && ok "lookup backend/crypto/implementer" || ko "got: $out"
+  out=$(bash lib/lookup-agent.sh "$AGENTS" frontend crypto implementer)
+  [ "$out" = "frontend-crypto-implementer" ] && ok "lookup frontend/crypto/implementer" || ko "got: $out"
+  if bash lib/lookup-agent.sh "$AGENTS" frontend waas implementer 2>/dev/null; then
+    ko "missing agent should exit non-zero"
+  else
+    ok "missing agent exits non-zero"
+  fi
+else
+  ko "lib/lookup-agent.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
