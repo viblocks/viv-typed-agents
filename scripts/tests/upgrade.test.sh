@@ -201,6 +201,12 @@ echo "$RUN_ERR" | grep -q "mutually exclusive with a component" \
   || ko "expected mutual-exclusion error"
 
 echo
+echo "--- --check --all is rejected ---"
+
+run_upgrade --check --all
+[ "$RUN_RC" -eq 2 ] && ok "exit 2 (usage error)" || ko "expected exit 2"
+
+echo
 echo "--- summary ---"
 echo "  PASS: $PASS"
 echo "  FAIL: $FAIL"

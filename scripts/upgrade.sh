@@ -31,8 +31,12 @@ usage_err() { echo "$1" >&2; exit 2; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --to)        TARGET_REF="$2"; shift 2 ;;
-    --check)     MODE="check"; shift ;;
-    --all)       MODE="all"; shift ;;
+    --check)
+      [ "$MODE" = "all" ] && usage_err "--check and --all are mutually exclusive"
+      MODE="check"; shift ;;
+    --all)
+      [ "$MODE" = "check" ] && usage_err "--check and --all are mutually exclusive"
+      MODE="all"; shift ;;
     --exit-code) EXIT_CODE_FLAG=1; shift ;;
     -h|--help)
       sed -n '2,/^set -uo/p' "$0" | sed 's/^# \?//'
@@ -51,7 +55,6 @@ done
 # Flag-combination validation.
 [ "$MODE" = "all" ] && [ -n "$COMP" ]               && usage_err "--all is mutually exclusive with a component name"
 [ "$MODE" = "all" ] && [ "$TARGET_REF" != "main" ]  && usage_err "--all does not support --to (components release independently)"
-[ "$MODE" = "check" ] && [ "$MODE" = "all" ]        && usage_err "--check and --all are mutually exclusive"
 [ "$EXIT_CODE_FLAG" -eq 1 ] && [ "$MODE" != "check" ] && usage_err "--exit-code is only valid with --check"
 [ "$MODE" = "single" ] && [ -z "$COMP" ]            && usage_err "Missing component name (or use --check / --all)"
 
