@@ -209,5 +209,45 @@ else
 fi
 
 echo
+echo "--- unmark-claude-md.sh ---"
+if [ -x lib/unmark-claude-md.sh ]; then
+  TMP=$(mktemp -d)
+
+  cat > "$TMP/CLAUDE.md" <<'EOF'
+# Project conventions
+Some user content above.
+<!-- viv-typed-agents:BEGIN -->
+Managed content here.
+<!-- viv-typed-agents:END -->
+More user content below.
+EOF
+  bash lib/unmark-claude-md.sh "$TMP/CLAUDE.md"
+  if grep -qF "Project conventions" "$TMP/CLAUDE.md" \
+     && grep -qF "More user content below" "$TMP/CLAUDE.md" \
+     && ! grep -qF "Managed content here" "$TMP/CLAUDE.md" \
+     && ! grep -qF "viv-typed-agents:BEGIN" "$TMP/CLAUDE.md"; then
+    ok "unmark: block removed, content outside preserved"
+  else
+    ko "unmark removal failed"
+  fi
+
+  prev=$(cat "$TMP/CLAUDE.md")
+  bash lib/unmark-claude-md.sh "$TMP/CLAUDE.md"
+  [ "$(cat "$TMP/CLAUDE.md")" = "$prev" ] && ok "unmark idempotent" || ko "unmark not idempotent"
+
+  cat > "$TMP/CLAUDE.md" <<'EOF'
+<!-- viv-typed-agents:BEGIN -->
+only managed
+<!-- viv-typed-agents:END -->
+EOF
+  bash lib/unmark-claude-md.sh "$TMP/CLAUDE.md" --remove-if-empty
+  [ ! -f "$TMP/CLAUDE.md" ] && ok "unmark --remove-if-empty deletes empty file" || ko "remove-if-empty failed"
+
+  rm -rf "$TMP"
+else
+  ko "lib/unmark-claude-md.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
