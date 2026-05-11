@@ -233,8 +233,42 @@ if [ "$UNINSTALL_MODE" = "full" ] \
   fi
 fi
 
-# (Subsequent tasks: cleanup transient + empty dirs + manifest update.)
-echo ""
-echo "Removed $removed_count paths."
+# Cleanup transient state (subagent marker registry).
+for f in "$CLAUDE_DIR/.subagent-active.json" "$CLAUDE_DIR/.subagent-active.json.lock"; do
+  if [ -f "$f" ]; then
+    rm -f "$f"
+    echo "  ✗ $(echo "$f" | sed "s|^$TARGET/||")"
+  fi
+done
+
+# Update or remove manifest.
+if [ "$UNINSTALL_MODE" = "full" ]; then
+  rm -f "$MANIFEST_PATH"
+  echo "  ✗ .claude/.install-manifest.json"
+else
+  tmp=$(mktemp)
+  jq --argjson removed "$(echo "$SELECTED_COMPONENTS" | jq -R . | jq -s .)" \
+     '.components = (.components | with_entries(select(.key as $k | $removed | index($k) | not)))' \
+     "$MANIFEST_PATH" > "$tmp"
+  mv "$tmp" "$MANIFEST_PATH"
+  echo "  ⟲ .claude/.install-manifest.json (updated; removed components excluded)"
+fi
+
+# Bottom-up empty-dir cleanup. -depth + -empty -delete recursively collapses.
+find "$CLAUDE_DIR" -depth -type d -empty -delete 2>/dev/null || true
+
+if [ ! -d "$CLAUDE_DIR" ]; then
+  echo "  ✗ .claude/ (now empty — removed)"
+fi
+
 [ -n "$FRAGMENT_SNAPSHOT" ] && rm -f "$FRAGMENT_SNAPSHOT"
-exit 0
+
+echo ""
+echo "============================================"
+echo "Uninstall complete."
+echo "  - $removed_count component paths removed"
+echo "  - mode: $UNINSTALL_MODE"
+[ "$UNINSTALL_MODE" = "full" ] && [ "$KEEP_CONFIG" -eq 0 ] && echo "  - wizard outputs reverted"
+echo ""
+echo "Review with: git status"
+echo "============================================"
