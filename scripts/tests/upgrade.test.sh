@@ -36,7 +36,36 @@ run_upgrade() {
   RUN_MANIFEST=$(cat "$RUN_TMP/MANIFEST.yaml")
 }
 
-# ----- tests start here (filled in by later tasks) -----
+# ----- tests start here -----
+
+echo "--- regression: single component bump (existing behavior) ---"
+
+run_upgrade comp-behind
+[ "$RUN_RC" -eq 0 ] && ok "exit 0" || ko "expected exit 0, got $RUN_RC"
+echo "$RUN_OUT" | grep -q "Bumped comp-behind: bbbbbbb → ddddddd" \
+  && ok "bumped comp-behind to expected SHA" \
+  || ko "expected bump message, got: $RUN_OUT"
+echo "$RUN_MANIFEST" | grep -q "commit: ddddddd" \
+  && ok "MANIFEST contains new SHA" \
+  || ko "MANIFEST missing new SHA"
+
+echo
+echo "--- regression: single component already current ---"
+
+run_upgrade comp-current
+[ "$RUN_RC" -eq 0 ] && ok "exit 0" || ko "expected exit 0"
+echo "$RUN_OUT" | grep -q "comp-current already at aaaaaaa" \
+  && ok "reports already-current" \
+  || ko "expected already-current message, got: $RUN_OUT"
+
+echo
+echo "--- regression: self-hosted rejection (single component) ---"
+
+run_upgrade comp-self
+[ "$RUN_RC" -eq 2 ] && ok "exit 2" || ko "expected exit 2, got $RUN_RC"
+echo "$RUN_ERR" | grep -q "cannot upgrade self-hosted" \
+  && ok "rejects self-hosted" \
+  || ko "expected self-hosted rejection, got: $RUN_ERR"
 
 echo
 echo "--- summary ---"
