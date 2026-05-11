@@ -174,6 +174,32 @@ trap cleanup_vendor EXIT
 # ---------- per-component install ----------
 for comp in $(selected_components); do
   REPO_URL=$(component_field "$comp" repo)
+  if [ "$REPO_URL" = "<self>" ]; then
+    # Component lives in this repo — copy directly from source_path to target_path.
+    SELF_SRC_REL=$(component_field "$comp" source_path)
+    SELF_TARGET_REL=$(component_field "$comp" target_path)
+    SELF_ROLE=$(component_field "$comp" role)
+    SELF_SRC="$REPO_ROOT/$SELF_SRC_REL"
+
+    echo ""
+    echo ">>> $comp (<self>) — $SELF_ROLE"
+    echo "    deploy → $TARGET/$SELF_TARGET_REL"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      echo "    (dry-run; skipping)"
+      continue
+    fi
+
+    if [ ! -d "$SELF_SRC" ]; then
+      echo "  ✗ $comp source_path does not exist: $SELF_SRC" >&2
+      exit 1
+    fi
+    mkdir -p "$TARGET/$SELF_TARGET_REL"
+    cp -R "$SELF_SRC/." "$TARGET/$SELF_TARGET_REL/"
+    find "$TARGET/$SELF_TARGET_REL" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
+    echo "    ✓ copied from $SELF_SRC"
+    continue
+  fi
   COMMIT=$(component_field "$comp" commit)
   TARGET_PATH=$(component_field "$comp" target_path)
   ROLE=$(component_field "$comp" role)

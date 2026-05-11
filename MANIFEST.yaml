@@ -16,14 +16,14 @@ components:
 
   viv-skills:
     repo: https://github.com/viblocks/viv-skills
-    commit: 290037b
+    commit: 2e40a61
     role: knowledge content (domain patterns, anti-patterns, references)
     target_path: .claude/skills/
     tiers: [1, 2, 3, 4, 5]
 
   viv-agents:
     repo: https://github.com/viblocks/viv-agents
-    commit: 47e7299
+    commit: 48d85e4
     role: typed agent declarations (frontmatter + system prompts)
     target_path: .claude/agents/
     tiers: [2, 3, 4, 5]
@@ -39,8 +39,8 @@ components:
 
   viv-workflows:
     repo: https://github.com/viblocks/viv-workflows
-    commit: 181aad0
-    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings). Decoupled from AI-DLC per ADR-RD-012.
+    commit: db9e117
+    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings, issue-tracker-adapter-contract). Decoupled from AI-DLC per ADR-RD-012.
     target_path: .claude/workflows/
     tiers: [3, 4, 5]
     requires: [viv-agents]
@@ -55,11 +55,19 @@ components:
 
   viv-orchestration-rules:
     repo: https://github.com/viblocks/viv-orchestration-rules
-    commit: 94117a5
+    commit: 137d2c1
     role: typed-agents-core behavioral rules (CLAUDE.md template + dispatch protocols + IRON LAW + chain orchestration). AI-DLC content split out per ADR-RD-012 to viblocks/aidlc-orchestrator (separate dependency-inverted product).
     target_path: .claude/orchestration/
     tiers: [5]
     requires: [viv-routing, viv-workflows]
+
+  viv-typed-agents-setup:
+    repo: <self>
+    commit: <self>
+    role: post-install configuration wizard (skill). Lives in this product repo (not a separate component).
+    target_path: .claude/skills/setup/
+    tiers: [3, 4, 5]
+    source_path: skills/setup/
 
 # Tier definitions:
 #   1 — Skills only (knowledge content; human-driven lookup)
