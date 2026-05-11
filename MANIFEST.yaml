@@ -16,14 +16,14 @@ components:
 
   viv-skills:
     repo: https://github.com/viblocks/viv-skills
-    commit: 290037b
+    commit: 2e40a61
     role: knowledge content (domain patterns, anti-patterns, references)
     target_path: .claude/skills/
     tiers: [1, 2, 3, 4, 5]
 
   viv-agents:
     repo: https://github.com/viblocks/viv-agents
-    commit: 47e7299
+    commit: 48d85e4
     role: typed agent declarations (frontmatter + system prompts)
     target_path: .claude/agents/
     tiers: [2, 3, 4, 5]
