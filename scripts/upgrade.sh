@@ -90,6 +90,12 @@ REPO_URL=$(yq_get ".components.\"$COMP\".repo" 2>/dev/null || true)
   echo "FATAL: component $COMP not in MANIFEST" >&2; exit 2;
 }
 
+if [ "$REPO_URL" = "<self>" ]; then
+  echo "FATAL: cannot upgrade self-hosted components (repo: <self>)." >&2
+  echo "  $COMP lives in this repo — manage it via git directly." >&2
+  exit 2
+fi
+
 OLD_SHA=$(yq_get ".components.\"$COMP\".commit")
 
 # Resolve TARGET_REF to a commit SHA via remote.
