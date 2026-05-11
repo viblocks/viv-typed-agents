@@ -320,6 +320,7 @@ for comp in $(selected_components); do
                   -not -path "*/architecture/*" | head -1)
           if [ -n "$found" ]; then
             cp "$found" "$DEST/"
+            install_manifest_register "$comp" "$TARGET_PATH/${agent}.md"
             echo "    + agent: $agent"
           else
             echo "    ! agent not found: $agent" >&2
@@ -327,13 +328,16 @@ for comp in $(selected_components); do
         done
       else
         # All .md files inside domain subfolders. Skip _shared/, architecture/, repo README.
-        find "$CLONE_DIR" -maxdepth 3 -name '*.md' -type f \
-          -not -path "*/.git/*" \
-          -not -path "*/_shared/*" \
-          -not -path "*/architecture/*" \
-          -not -path "$CLONE_DIR/README.md" \
-          -not -path "$CLONE_DIR/CLAUDE.md" \
-          -exec cp {} "$DEST/" \;
+        while IFS= read -r src; do
+          [ -f "$src" ] || continue
+          cp "$src" "$DEST/"
+          install_manifest_register "$comp" "$TARGET_PATH/$(basename "$src")"
+        done < <(find "$CLONE_DIR" -maxdepth 3 -name '*.md' -type f \
+                  -not -path "*/.git/*" \
+                  -not -path "*/_shared/*" \
+                  -not -path "*/architecture/*" \
+                  -not -path "$CLONE_DIR/README.md" \
+                  -not -path "$CLONE_DIR/CLAUDE.md")
         # Drop any top-level README that snuck in (find -not -path with $CLONE_DIR/README.md
         # only excludes the literal path; find-rel may still match).
         rm -f "$DEST/README.md" "$DEST/CLAUDE.md" 2>/dev/null || true
