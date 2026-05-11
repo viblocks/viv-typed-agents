@@ -68,6 +68,53 @@ echo "$RUN_ERR" | grep -q "cannot upgrade self-hosted" \
   || ko "expected self-hosted rejection, got: $RUN_ERR"
 
 echo
+echo "--- --check: reports drift across all components ---"
+
+run_upgrade --check
+[ "$RUN_RC" -eq 0 ] && ok "exit 0 (default)" || ko "expected exit 0, got $RUN_RC"
+echo "$RUN_OUT" | grep -q "comp-current.*aaaaaaa.*aaaaaaa.*current" \
+  && ok "comp-current reported as current" \
+  || ko "expected comp-current ✓ current, got: $RUN_OUT"
+echo "$RUN_OUT" | grep -q "comp-behind.*bbbbbbb.*ddddddd.*behind" \
+  && ok "comp-behind reported as behind" \
+  || ko "expected comp-behind ⚠ behind, got: $RUN_OUT"
+echo "$RUN_OUT" | grep -q "comp-also-behind.*ccccccc.*eeeeeee.*behind" \
+  && ok "comp-also-behind reported as behind" \
+  || ko "expected comp-also-behind ⚠ behind"
+echo "$RUN_OUT" | grep -q "comp-self.*self-hosted" \
+  && ok "comp-self reported as self-hosted" \
+  || ko "expected comp-self ⊘ self-hosted"
+echo "$RUN_OUT" | grep -q "2 component(s) behind" \
+  && ok "summary counts drift" \
+  || ko "expected '2 component(s) behind', got: $RUN_OUT"
+
+# Manifest must NOT be modified by --check.
+echo "$RUN_MANIFEST" | grep -q "commit: bbbbbbb" \
+  && ok "comp-behind SHA unchanged in MANIFEST" \
+  || ko "comp-behind SHA was modified by --check"
+
+echo
+echo "--- --check with all current ---"
+
+# Filter to comp-current only — no drift expected.
+run_upgrade --check comp-current
+[ "$RUN_RC" -eq 0 ] && ok "exit 0" || ko "expected exit 0"
+echo "$RUN_OUT" | grep -q "All components current" \
+  && ok "reports all-current when only current shown" \
+  || ko "expected 'All components current', got: $RUN_OUT"
+
+echo
+echo "--- --check single component ---"
+
+run_upgrade --check comp-behind
+echo "$RUN_OUT" | grep -q "comp-behind.*behind" \
+  && ok "filters to single component" \
+  || ko "expected single-component check"
+echo "$RUN_OUT" | grep -q "comp-current" \
+  && ko "should not show other components" \
+  || ok "other components filtered out"
+
+echo
 echo "--- summary ---"
 echo "  PASS: $PASS"
 echo "  FAIL: $FAIL"
