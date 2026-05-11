@@ -140,15 +140,39 @@ echo "--- adapt-claude-md.sh ---"
 if [ -x lib/adapt-claude-md.sh ]; then
   TMP=$(mktemp -d)
   echo "# <PROJECT_NAME>" > "$TMP/template.md"
-  bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "viv-app"
-  out=$(cat "$TMP/CLAUDE.md")
-  [ "$out" = "# viv-app" ] && ok "template adapted" || ko "got: $out"
 
-  # Existing CLAUDE.md should be skipped.
-  echo "# existing" > "$TMP/CLAUDE.md"
+  # Mode 1: fresh file
   bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "viv-app"
-  out=$(cat "$TMP/CLAUDE.md")
-  [ "$out" = "# existing" ] && ok "existing CLAUDE.md preserved" || ko "got: $out"
+  grep -qF "<!-- viv-typed-agents:BEGIN -->" "$TMP/CLAUDE.md" && \
+  grep -qF "# viv-app" "$TMP/CLAUDE.md" && \
+  grep -qF "<!-- viv-typed-agents:END -->" "$TMP/CLAUDE.md" && \
+    ok "mode 1: fresh file created with managed block" || ko "mode 1 failed"
+
+  # Mode 2: existing file without markers → append
+  echo "# Existing content" > "$TMP/CLAUDE.md"
+  bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "viv-app"
+  head -1 "$TMP/CLAUDE.md" | grep -qF "Existing content" && \
+  grep -qF "<!-- viv-typed-agents:BEGIN -->" "$TMP/CLAUDE.md" && \
+  grep -qF "# viv-app" "$TMP/CLAUDE.md" && \
+    ok "mode 2: existing file preserved + managed block appended" || ko "mode 2 failed"
+
+  # Mode 3: re-running should replace, not duplicate
+  bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "viv-app"
+  begin_count=$(grep -cF "<!-- viv-typed-agents:BEGIN -->" "$TMP/CLAUDE.md")
+  end_count=$(grep -cF "<!-- viv-typed-agents:END -->" "$TMP/CLAUDE.md")
+  [ "$begin_count" = "1" ] && [ "$end_count" = "1" ] && \
+    ok "mode 3: idempotent re-run (no duplicate markers)" || ko "mode 3 failed: begin=$begin_count end=$end_count"
+
+  # Mode 3: refresh with new project name
+  echo "# template-v2 <PROJECT_NAME>" > "$TMP/template.md"
+  bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "renamed-app"
+  grep -qF "# template-v2 renamed-app" "$TMP/CLAUDE.md" && \
+  ! grep -qF "# viv-app" "$TMP/CLAUDE.md" && \
+    ok "mode 3: template content refreshed on re-run" || ko "mode 3 refresh failed"
+
+  # Mode 2/3: content above markers preserved verbatim
+  head -1 "$TMP/CLAUDE.md" | grep -qF "Existing content" && \
+    ok "content outside markers preserved across all modes" || ko "outside content lost"
   rm -rf "$TMP"
 else
   ko "lib/adapt-claude-md.sh not found"
