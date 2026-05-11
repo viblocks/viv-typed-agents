@@ -196,6 +196,7 @@ for comp in $(selected_components); do
     fi
     mkdir -p "$TARGET/$SELF_TARGET_REL"
     cp -R "$SELF_SRC/." "$TARGET/$SELF_TARGET_REL/"
+    find "$TARGET/$SELF_TARGET_REL" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
     echo "    ✓ copied from $SELF_SRC"
     continue
   fi

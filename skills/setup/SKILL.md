@@ -76,11 +76,20 @@ Options: ["Crypto", "WaaS", "Generic"]
 
 ### Phase 4 — Build the routing plan and confirm
 
-For the selected business domain `BD`, for each (layer, role) pair in `{(backend, implementer), (backend, reviewer), (frontend, implementer), (frontend, reviewer)}`:
+For the selected business domain `BD`, determine which **layers are actually present** in this project:
+
+- For **brownfield**: a layer is present if at least one service folder was classified as that layer in Phase 2 (after ambiguous-folder resolution).
+- For **greenfield**: a layer is present if the user provided a path for it in the path-input step.
+
+For each present layer `L` ∈ {backend, frontend} and role `R` ∈ {implementer, reviewer}, run:
+
 ```bash
-bash .claude/skills/setup/lib/lookup-agent.sh .claude/agents/ <layer> <BD> <role>
+bash .claude/skills/setup/lib/lookup-agent.sh .claude/agents/ <L> <BD> <R>
 ```
-If any lookup fails (exit non-zero), abort and tell the user:
+
+If `L` is not present, do NOT run the lookup — that layer's route will not appear in the routing-table.
+
+If any required lookup (for a present layer) fails (exit non-zero), abort and tell the user:
 ```
 "Missing agents for business domain '<BD>':
   - <layer>-<BD>-<role>  (no agent matches)
