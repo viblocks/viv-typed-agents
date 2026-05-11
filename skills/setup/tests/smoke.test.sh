@@ -6,8 +6,8 @@
 
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO_ROOT"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)" || { echo "FATAL: cannot resolve REPO_ROOT" >&2; exit 1; }
+cd "$REPO_ROOT" || { echo "FATAL: cd $REPO_ROOT failed" >&2; exit 1; }
 
 PASS=0
 FAIL=0
@@ -28,6 +28,8 @@ if [ -x lib/detect-state.sh ]; then
   [ "$out" = "greenfield" ] && ok "greenfield detected" || ko "expected greenfield, got '$out'"
   out=$(bash lib/detect-state.sh "$FIXTURES/brownfield-crypto")
   [ "$out" = "brownfield" ] && ok "brownfield detected" || ko "expected brownfield, got '$out'"
+  out=$(bash lib/detect-state.sh "$FIXTURES/brownfield-ts-only")
+  [ "$out" = "brownfield" ] && ok "brownfield-ts-only detected via .ts extension" || ko "expected brownfield, got '$out'"
 else
   ko "lib/detect-state.sh not found"
 fi
