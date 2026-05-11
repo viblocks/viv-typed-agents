@@ -370,11 +370,13 @@ for comp in $(selected_components); do
       # Flatten rules/<name>.template.json → workflows/<name>.json (the path
       # workflow-loader expects). Schemas kept under schemas/ for validation.
       mkdir -p "$DEST/schemas"
+      install_manifest_register "$comp" "$TARGET_PATH/schemas/"
       if [ -d "$CLONE_DIR/rules" ]; then
         for f in "$CLONE_DIR"/rules/*.json; do
           [ -f "$f" ] || continue
           base=$(basename "$f" .template.json)
           cp "$f" "$DEST/${base}.json"
+          install_manifest_register "$comp" "$TARGET_PATH/${base}.json"
         done
       fi
       if [ -d "$CLONE_DIR/schemas" ]; then
@@ -384,6 +386,7 @@ for comp in $(selected_components); do
       if [ -d "$CLONE_DIR/examples/viblocks-style" ]; then
         mkdir -p "$DEST/examples/viblocks-style"
         cp -r "$CLONE_DIR"/examples/viblocks-style/* "$DEST/examples/viblocks-style/"
+        install_manifest_register "$comp" "$TARGET_PATH/examples/"
       fi
       ;;
     viv-orchestration-rules)
