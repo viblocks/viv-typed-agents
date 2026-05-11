@@ -1,0 +1,8 @@
+{
+  "$schema": "./schema/routing-table.schema.json",
+  "version": "1.0",
+  "routes": [
+    {"domain":"backend","paths":["services/core/**"],"implementer":"backend-crypto-implementer","reviewer":"backend-crypto-reviewer","enforced":true},
+    {"domain":"frontend","paths":["services/ui/**"],"implementer":"frontend-crypto-implementer","reviewer":"frontend-crypto-reviewer","enforced":true}
+  ]
+}
