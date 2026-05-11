@@ -115,6 +115,27 @@ echo "$RUN_OUT" | grep -q "comp-current" \
   || ok "other components filtered out"
 
 echo
+echo "--- --check --exit-code with drift ---"
+
+run_upgrade --check --exit-code
+[ "$RUN_RC" -eq 1 ] && ok "exit 1 on drift" || ko "expected exit 1, got $RUN_RC"
+
+echo
+echo "--- --check --exit-code without drift (single current component) ---"
+
+run_upgrade --check comp-current --exit-code
+[ "$RUN_RC" -eq 0 ] && ok "exit 0 when current" || ko "expected exit 0, got $RUN_RC"
+
+echo
+echo "--- --exit-code without --check is rejected ---"
+
+run_upgrade comp-behind --exit-code
+[ "$RUN_RC" -eq 2 ] && ok "exit 2 (usage error)" || ko "expected exit 2, got $RUN_RC"
+echo "$RUN_ERR" | grep -q "only valid with --check" \
+  && ok "rejects --exit-code without --check" \
+  || ko "expected usage error message, got: $RUN_ERR"
+
+echo
 echo "--- summary ---"
 echo "  PASS: $PASS"
 echo "  FAIL: $FAIL"
