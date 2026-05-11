@@ -60,6 +60,26 @@ else
 fi
 
 echo
+echo "--- classify-layer.sh: realistic monorepo ---"
+if [ -x lib/classify-layer.sh ]; then
+  SKILLS="$FIXTURES/_skills"
+  # services/core: main.ts lives in src/ (not root) and nest-cli.json is absent,
+  # so entry_files miss — must fall through to file_globs (src/**/*.module.ts).
+  out=$(bash lib/classify-layer.sh "$FIXTURES/brownfield-realistic" "services/core" "$SKILLS")
+  [ "$out" = "backend" ] && ok "realistic/services/core -> backend via glob" || ko "got: $out"
+  out=$(bash lib/classify-layer.sh "$FIXTURES/brownfield-realistic" "services/ui" "$SKILLS")
+  [ "$out" = "frontend" ] && ok "realistic/services/ui -> frontend" || ko "got: $out"
+
+  # Regression: a backend folder containing a stray .tsx file (e.g. email
+  # template) matches BOTH backend (src/**/*.module.ts) and frontend
+  # (**/*.tsx). This validates that the new precise glob matching surfaces
+  # real ambiguity rather than silently picking a wrong layer — the wizard
+  # is expected to ask the user when it sees `ambiguous`.
+  out=$(bash lib/classify-layer.sh "$FIXTURES/brownfield-backend-with-stray-tsx" "services/core" "$SKILLS")
+  [ "$out" = "ambiguous" ] && ok "backend + stray .tsx correctly flagged ambiguous" || ko "got: $out (expected ambiguous, model needs work)"
+fi
+
+echo
 echo "--- lookup-agent.sh ---"
 if [ -x lib/lookup-agent.sh ]; then
   AGENTS="$FIXTURES/_agents"
