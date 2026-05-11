@@ -196,7 +196,44 @@ while IFS= read -r comp; do
   done < <(jq -r --arg c "$comp" '.components[$c].paths[]' "$MANIFEST_PATH")
 done <<< "$SELECTED_COMPONENTS"
 
-# (Subsequent tasks: reverse-merge, unmark, cleanup, manifest update.)
+# Reverse-merge settings.json (FULL uninstall only, --keep-config not set,
+# snapshot exists, target settings exists).
+if [ "$UNINSTALL_MODE" = "full" ] \
+   && [ "$KEEP_CONFIG" -eq 0 ] \
+   && [ -n "$FRAGMENT_SNAPSHOT" ] \
+   && [ -f "$CLAUDE_DIR/settings.json" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  UNMERGE="$SCRIPT_DIR/../skills/setup/lib/unmerge-settings.sh"
+  if [ -x "$UNMERGE" ]; then
+    bash "$UNMERGE" "$CLAUDE_DIR/settings.json" "$FRAGMENT_SNAPSHOT"
+    if [ -f "$CLAUDE_DIR/settings.json" ]; then
+      echo "  ⟲ settings.json reverse-merged (user keys preserved)"
+    else
+      echo "  ✗ settings.json (became {} after unmerge — removed)"
+    fi
+  else
+    echo "  ! unmerge-settings.sh not found at $UNMERGE — skip settings.json reverse-merge" >&2
+  fi
+elif [ "$UNINSTALL_MODE" = "full" ] && [ "$KEEP_CONFIG" -eq 0 ] && [ -z "$FRAGMENT_SNAPSHOT" ] && [ -f "$CLAUDE_DIR/settings.json" ]; then
+  echo "  ! fragment snapshot missing — review .claude/settings.json manually" >&2
+fi
+
+# Unmark CLAUDE.md (FULL uninstall only, --keep-config not set, markers present).
+if [ "$UNINSTALL_MODE" = "full" ] \
+   && [ "$KEEP_CONFIG" -eq 0 ] \
+   && [ -f "$TARGET/CLAUDE.md" ] \
+   && grep -qF "<!-- viv-typed-agents:BEGIN -->" "$TARGET/CLAUDE.md"; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  UNMARK="$SCRIPT_DIR/../skills/setup/lib/unmark-claude-md.sh"
+  if [ -x "$UNMARK" ]; then
+    bash "$UNMARK" "$TARGET/CLAUDE.md"
+    echo "  ⟲ CLAUDE.md managed block removed (content outside markers preserved)"
+  else
+    echo "  ! unmark-claude-md.sh not found at $UNMARK — skip CLAUDE.md unmark" >&2
+  fi
+fi
+
+# (Subsequent tasks: cleanup transient + empty dirs + manifest update.)
 echo ""
 echo "Removed $removed_count paths."
 [ -n "$FRAGMENT_SNAPSHOT" ] && rm -f "$FRAGMENT_SNAPSHOT"
