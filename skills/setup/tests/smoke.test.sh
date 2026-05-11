@@ -116,5 +116,24 @@ else
 fi
 
 echo
+echo "--- adapt-claude-md.sh ---"
+if [ -x lib/adapt-claude-md.sh ]; then
+  TMP=$(mktemp -d)
+  echo "# <PROJECT_NAME>" > "$TMP/template.md"
+  bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "viv-app"
+  out=$(cat "$TMP/CLAUDE.md")
+  [ "$out" = "# viv-app" ] && ok "template adapted" || ko "got: $out"
+
+  # Existing CLAUDE.md should be skipped.
+  echo "# existing" > "$TMP/CLAUDE.md"
+  bash lib/adapt-claude-md.sh "$TMP/template.md" "$TMP/CLAUDE.md" "viv-app"
+  out=$(cat "$TMP/CLAUDE.md")
+  [ "$out" = "# existing" ] && ok "existing CLAUDE.md preserved" || ko "got: $out"
+  rm -rf "$TMP"
+else
+  ko "lib/adapt-claude-md.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
