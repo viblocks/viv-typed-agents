@@ -174,6 +174,10 @@ trap cleanup_vendor EXIT
 # ---------- per-component install ----------
 for comp in $(selected_components); do
   REPO_URL=$(component_field "$comp" repo)
+  if [ "$REPO_URL" = "<self>" ]; then
+    echo "  ⊘ skipping $comp (repo: <self>) — local-component handler not yet implemented (Task 14)"
+    continue
+  fi
   COMMIT=$(component_field "$comp" commit)
   TARGET_PATH=$(component_field "$comp" target_path)
   ROLE=$(component_field "$comp" role)
