@@ -212,6 +212,22 @@ curl -sL https://raw.githubusercontent.com/viblocks/viv-typed-agents/main/script
 
 See `scripts/install.sh --help` for full flag reference.
 
+## After install — run the setup wizard
+
+For tier 3+ installs, run inside the consumer project:
+
+```
+claude
+> /typedAgentSetup
+```
+
+The wizard scans the project (or asks for paths if greenfield), asks
+which business domain you work in (Crypto, WaaS, Generic), and writes
+the routing-table, merges hook settings, and adapts CLAUDE.md.
+
+See `architecture/specs/2026-05-09-typed-agent-setup.md` for the full
+behavior.
+
 ## What you get post-install
 
 ```
