@@ -1,41 +1,63 @@
 # Network composition reference
 
-Authoritative diagram of how `issue-tracker-linear` fits into the wider
-viblocks repo network. Mirrored in:
+Authoritative diagram of how the viblocks repos compose. Mirrored across:
 
 - `viv-typed-agents/docs/network-composition.md`
 - `viblocks-aidlc-orchestrator/docs/network-composition.md`
-- `issue-tracker-linear/docs/network-composition.md` (this file)
+- `issue-driven-orchestrator/docs/network-composition.md`
+- `issue-tracker-linear/docs/network-composition.md`
+
+## Responsibilities (SRP)
+
+| Layer | Repo | Single responsibility |
+|---|---|---|
+| 1 | Superpowers | Skills + discipline (reference patterns) |
+| 2 | viv-typed-agents (meta) | Compose dispatch components into installable product |
+| 2 | viv-orchestration-rules | Dispatch rules (IRON LAW, mechanism, routing protocol, post-impl chain) |
+| 2 | viv-workflows | Schemas for dispatch-enforcement contracts (audit-trail, evidence, fix-intent, pairings, chain) |
+| 2 | viv-hooks | Runtime enforcement hooks |
+| 2 | viv-agents | Typed agent declarations |
+| 2 | viv-skills | Domain skill packs |
+| 2 | viv-routing | Routing-table loader + config |
+| 3 | viblocks-aidlc-orchestrator | AI-DLC change flow (Inception/Construction/Verification/Deployment) |
+| 3 | issue-driven-orchestrator | Issue-driven change flow (autonomous, post-production) |
+| 3 | issue-tracker-linear | Linear provider adapter (issue-tracker verb contract impl) |
+| 4 | Consumer (e.g. viblocks-ai) | Application — installs whichever Layer 2/3 stacks it needs |
 
 ## Layered view
 
 ```
-                  LAYER 4 — CONSUMER
-                  ═══════════════════
-                       viblocks-ai (or any other consumer)
+                  LAYER 4 — CONSUMER (e.g. viblocks-ai)
+                  ════════════════════════════════════
                             │
-              ┌─────────────┼─────────────────────────┐
-              │             │                         │
-              │ installs    │ installs                │ installs
-              ▼             ▼                         ▼
-       ┌─────────────┐  ┌────────────────────┐  ┌───────────────────┐
-       │ typed-agts  │  │ aidlc-orchestrator │  │ issue-tracker-    │
-       │ stack       │  │   (LAYER 3a)       │  │   linear          │
-       │ (LAYER 2)   │  │                    │  │   (LAYER 3b)      │
-       └──────┬──────┘  └────────┬───────────┘  └─────────┬─────────┘
-              │                  │                        │
-              │                  │ MANIFEST.yaml          │ depends on
-              │                  │ pins typed-agents      │ ABSTRACTION
-              │                  │ commits                │ (schema URL),
-              │                  ▼                        │ no MANIFEST pin
-              │           consumes rules/hooks/           │
-              │           workflows/agents/etc.           │
-              │                                           │
-              └────────────── ABSTRACTION ────────────────┘
-                       owned by typed-agents
-              (viv-workflows/schemas/issue-tracker-
-               adapter-contract.schema.json)
+        ┌───────────────────┼──────────────────┬──────────────────┐
+        │ installs          │ installs         │ installs         │ installs
+        ▼                   ▼                  ▼                  ▼
+  ┌───────────────┐  ┌──────────────────┐  ┌──────────────┐  ┌──────────────────┐
+  │ typed-agents  │  │ aidlc-           │  │ issue-driven-│  │ issue-tracker-   │
+  │ stack         │  │ orchestrator     │  │ orchestrator │  │ linear           │
+  │ (Layer 2)     │  │ (Layer 3a)       │  │ (Layer 3b)   │  │ (Layer 3c)       │
+  │               │  │ AI-DLC flow      │  │ Issue flow   │  │ Linear adapter   │
+  └───────┬───────┘  └─────┬────────────┘  └──────┬───────┘  └─────────┬────────┘
+          │                │ MANIFEST pin         │ uses (no pin)      │
+          │                │ to typed-agents      │ - typed-agents     │ implements
+          │                │                      │ - adapter contract │ verb contract
+          │                ▼                      ▼                    │
+          │           dispatches via         dispatches via             │
+          │           typed-agents IRON      typed-agents IRON          │
+          │           LAW + chain            LAW + chain                │
+          │                                                             │
+          └──────────── all callers of issue-tracker speak ◄────────────┘
+                       the verb contract owned by the
+                       reference adapter (issue-tracker-linear)
 ```
+
+## Key boundaries
+
+- **typed-agents owns dispatch only.** No change-flow protocols, no issue-tracker contracts.
+- **Change-flow orchestrators (3a, 3b) own their flows.** Each consumes typed-agents and any adapters it needs.
+- **Adapters (3c) are standalone.** They own their own contracts. Reusable by any caller speaking the verb contract.
+- **The consumer composes Layer 3.** No Layer 3 repo pins another Layer 3 repo.
 
 ## Dependency taxonomy
 
@@ -43,8 +65,8 @@ viblocks repo network. Mirrored in:
 |---|---|---|
 | Binary pin (hard) | `MANIFEST.yaml` with commit hash | viv-typed-agents → viv-workflows@<sha> |
 | Composition (medium) | `install.sh` copies files into target | aidlc-orchestrator → typed-agents stack |
-| Contract reference (soft) | URL to schema/doc in another repo | issue-tracker-linear → viv-workflows schema |
-| Side-by-side install (none) | Consumer installs both; they don't know each other | viblocks-ai → typed-agents + issue-tracker-linear |
+| Contract reference (soft) | URL to schema/doc in another repo | issue-driven-orchestrator → issue-tracker-linear's adapter contract |
+| Side-by-side install (none) | Consumer installs both; they don't know each other | viblocks-ai → typed-agents + issue-tracker-linear + issue-driven-orchestrator |
 | Conceptual (none) | Named in prose without import | aidlc-orchestrator → Superpowers |
 
 ## Per-repo dependencies
@@ -58,37 +80,16 @@ viblocks repo network. Mirrored in:
 | viv-agents | 2 | — | viv-routing |
 | viv-skills | 2 | — | — |
 | viv-routing | 2 | — | viv-workflows |
-| viblocks-aidlc-orchestrator | 3a | viv-typed-agents | Superpowers |
-| **issue-tracker-linear** | 3b | — (none) | viv-workflows (contract schema) |
-| viblocks-ai (consumer) | 4 | typed-agents, aidlc-orchestrator, issue-tracker-linear | — |
+| viblocks-aidlc-orchestrator | 3a | viv-typed-agents | Superpowers; (optionally) issue-tracker contract |
+| **issue-driven-orchestrator** | 3b | — | typed-agents (rules consumed conceptually); issue-tracker contract |
+| **issue-tracker-linear** | 3c | — | — (owns its own contract) |
+| viblocks-ai (consumer) | 4 | composes any Layer 2/3 it needs | — |
 
 ## Rules of thumb
 
-1. **MANIFEST.yaml = version commitment.** Only justified when this repo
-   consumes the pinned repo's artifacts at the binary/behavioral level.
-2. **URL reference ≠ MANIFEST pin.** Citing an abstraction (schema, rule) by
-   URL is correct DIP; it does not force pinning the implementation.
-3. **Arrow direction follows control:** whoever defines the rule (high-level)
-   is "upstream"; whoever implements it (low-level) is "downstream". The
-   adapter is downstream of typed-agents in abstraction but independent in
-   implementation.
-4. **Composition is the consumer's job.** Layer 4 is not auto-composed of
-   Layer 3; the consumer installs what it needs.
-5. **typed-agents never knows concrete providers** (Linear, Jira, GitHub) —
-   only the abstraction (the verb contract).
-6. **Adapters never know typed-agents internals** — only the contract.
-
-## Why `issue-tracker-linear` has no MANIFEST pin
-
-`issue-tracker-linear` depends on the **abstraction** (the verb contract)
-that lives at `viv-workflows/schemas/issue-tracker-adapter-contract.schema.json`,
-not on typed-agents' implementation.
-
-Pinning a typed-agents commit would couple the adapter to the entire
-implementation stack — unjustified, since the adapter only needs the contract.
-Citing the schema by URL is sufficient.
-
-If the contract evolves with a breaking change, the adapter will be updated
-alongside; the URL acts as the soft compatibility marker. See
-`architecture/decisions/ADR-001-no-pin-to-typed-agents.md` for the SOLID
-rationale.
+1. **MANIFEST.yaml = version commitment.** Only justified when consuming the pinned repo's artifacts at binary level.
+2. **URL reference ≠ MANIFEST pin.** Citing an abstraction by URL is correct DIP; does not force pinning the implementation.
+3. **typed-agents stays pure dispatch.** Change flows, issue-trackers, SDLC stages — none of those belong inside.
+4. **Adapters own their contracts** (until enough peers exist to justify a neutral contract repo).
+5. **Layer 3 repos are siblings.** None pins another. Consumer composes.
+6. **Layer 4 (consumer) installs whatever subset it needs.** No Layer 3 repo is mandatory.
