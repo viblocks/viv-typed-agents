@@ -87,8 +87,9 @@ install_manifest_register() {
   local comp="$1" relpath="$2"
   # Strip leading/trailing slash and collapse internal duplicates.
   # MANIFEST.yaml target_path entries end in '/', so naive concat produces '//'.
+  # Use sed because bash 3.2 (macOS default) mis-handles ${var//\/\//\/}.
   relpath="${relpath#/}"; relpath="${relpath%/}"
-  while [[ "$relpath" == *"//"* ]]; do relpath="${relpath//\/\//\/}"; done
+  relpath=$(printf '%s' "$relpath" | sed 's|//*|/|g')
   INSTALL_MANIFEST_ENTRIES+=("$comp"$'\t'"$relpath")
 }
 
@@ -435,6 +436,10 @@ for comp in $(selected_components); do
       ;;
   esac
 done
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  install_manifest_emit
+fi
 
 echo ""
 echo "============================================"
