@@ -300,6 +300,30 @@ Implementation: `jq` recursive set-difference. Arrays: keep elements not in frag
 - **No `--force`.** Permission errors abort; that's the only "force" scenario, and the right answer is "fix the permission, not bypass it".
 - **No tier-based filter.** `--tier N` is ambiguous: does it mean "remove components in tier N" or "leave installation at tier N"? Inverse semantics confuse. `--components` covers the legitimate use case (downgrade by removing specific components).
 
+### Known limitations
+
+Two real-world findings from validating against `blacklist-monitor` after a re-install. Both are consequences of the source-side enumeration design, not bugs.
+
+#### 1. Orphans from previous installs are preserved
+
+The manifest reflects what **this** install deployed. If a previous install at an older component SHA placed a file that the current SHA no longer ships (source repo refactor), the manifest from the new install does not list the orphan, and the uninstaller leaves it untouched.
+
+**Example:** `viv-workflows@181aad0` shipped `issue-tracker-adapter-contract.template.json`. The same repo at `419b659` removed it. A consumer installed at `181aad0`, then re-installed at `419b659`, ends up with both:
+- The new install's manifest (5 workflow files, no `issue-tracker`)
+- An orphan `.claude/workflows/issue-tracker-adapter-contract.json` from the prior install
+
+After uninstall, the orphan survives. **Resolution:** `git status` + manual `rm` if undesired. Not worth coding orphan detection — it would require persisting a chained history of installs and would add a non-trivial trap (legitimate user additions to `.claude/workflows/` could be misclassified as orphans).
+
+#### 2. Scalar leakage from the fragment via reverse-merge
+
+`unmerge-settings.sh` performs set-difference on arrays and recursive removal on objects, but **does not remove scalar values** — by design, because post-merge it cannot distinguish "user had this scalar before install" from "fragment set this scalar". Removing a scalar that a user had legitimately would be a regression.
+
+**Consequence:** scalar keys present in `settings.json.fragment` (e.g., `env.CLAUDE_HOOKS_MODE`) persist in the consumer's `settings.json` after uninstall.
+
+**Mitigation in place (since this commit):** `merge-settings.sh` now filters out any object key starting with `_` (e.g., `_comment`) at all depths before merging. This prevents the most visible class of leakage — fragment documentation strings — from entering the consumer's settings in the first place. Other scalar values that have functional meaning (mode flags, optional override paths) remain unless removed manually.
+
+**Resolution if undesired:** `rm .claude/settings.json` after uninstall, or edit manually.
+
 ## Testing
 
 ### Unit-level smoke tests for new lib scripts
