@@ -101,5 +101,20 @@ else
 fi
 
 echo
+echo "--- merge-settings.sh ---"
+if [ -x lib/merge-settings.sh ]; then
+  TMP=$(mktemp -d)
+  echo '{"theme":"dark","hooks":{"PreToolUse":[]}}' > "$TMP/settings.json"
+  echo '{"hooks":{"PreToolUse":[{"name":"deny-class-a"}]}}' > "$TMP/fragment.json"
+  bash lib/merge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  theme=$(jq -r '.theme' "$TMP/settings.json")
+  hooks=$(jq '.hooks.PreToolUse | length' "$TMP/settings.json")
+  [ "$theme" = "dark" ] && [ "$hooks" = "1" ] && ok "merge preserves user keys and adds hook" || ko "theme=$theme hooks=$hooks"
+  rm -rf "$TMP"
+else
+  ko "lib/merge-settings.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
