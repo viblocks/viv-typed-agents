@@ -290,6 +290,28 @@ Next steps after install are printed by the installer (configure routing-table.j
 ./scripts/upgrade.sh viv-hooks --to 99c56f8
 ```
 
+### Keeping components current
+
+Component repos advance independently. To check for drift between `MANIFEST.yaml`
+and each component's upstream `main`:
+
+    ./scripts/upgrade.sh --check
+
+To bump every drifted component to its `main` HEAD in one shot:
+
+    ./scripts/upgrade.sh --all
+    git diff MANIFEST.yaml
+    # commit with the suggested message printed by the script
+
+To bump a single component to a specific ref (e.g. a release tag), use the
+existing single-component form:
+
+    ./scripts/upgrade.sh viv-hooks --to v1.2.0
+
+In CI, fail the build when the manifest is stale:
+
+    ./scripts/upgrade.sh --check --exit-code
+
 ## What's inside
 
 This repo is the umbrella + the installer. The actual content lives in 6 internal component repos pinned in `MANIFEST.yaml`.
