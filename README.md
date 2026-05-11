@@ -228,6 +228,40 @@ the routing-table, merges hook settings, and adapts CLAUDE.md.
 See `architecture/specs/2026-05-09-typed-agent-setup.md` for the full
 behavior.
 
+## Uninstall
+
+To remove a viv-typed-agents installation from a consumer project:
+
+```bash
+./scripts/uninstall.sh /path/to/your-project
+```
+
+Defaults: removes all components, reverses the wizard's modifications to `settings.json` and `CLAUDE.md`, cleans up transient state, and removes `.claude/.install-manifest.json`. User customizations under shared namespaces (e.g., `.claude/skills/my-team-skill/`) are preserved.
+
+### Options
+
+| Flag | Behavior |
+|---|---|
+| `--components <list>` | CSV of components to remove. Default: all. Partial uninstall does NOT touch `settings.json` or `CLAUDE.md`. |
+| `--dry-run` | Print the plan without removing anything. |
+| `--keep-config` | On full uninstall, skip `settings.json` reverse-merge and `CLAUDE.md` unmark. |
+
+### Examples
+
+```bash
+# Preview what would happen
+./scripts/uninstall.sh ~/my-project --dry-run
+
+# Downgrade: keep tier 3 (skills + agents + routing + workflows + orchestration),
+# remove only the hooks layer
+./scripts/uninstall.sh ~/my-project --components viv-hooks
+
+# Full uninstall but keep your manually-edited settings.json + CLAUDE.md
+./scripts/uninstall.sh ~/my-project --keep-config
+```
+
+The uninstaller reads `<target>/.claude/.install-manifest.json` (written by `install.sh`) to know exactly which paths it deployed. If the manifest is missing (e.g., the install pre-dates manifest support), the uninstaller aborts and points you to manual cleanup. See `architecture/specs/2026-05-11-uninstall.md` for the full design.
+
 ## What you get post-install
 
 ```
