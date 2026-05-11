@@ -78,6 +78,49 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MANIFEST="$REPO_ROOT/MANIFEST.yaml"
 [ -f "$MANIFEST" ] || { echo "FATAL: MANIFEST.yaml not found at $MANIFEST" >&2; exit 2; }
 
+# ---- Install manifest (for uninstall) ----
+# As each component deploys, register the destination paths it owns.
+# Paths are relative to $TARGET. The manifest is written at the end.
+declare -a INSTALL_MANIFEST_ENTRIES  # one "comp<TAB>relpath" per line
+
+install_manifest_register() {
+  local comp="$1" relpath="$2"
+  # Strip any duplicate leading/trailing slash
+  relpath="${relpath#/}"; relpath="${relpath%/}"
+  INSTALL_MANIFEST_ENTRIES+=("$comp"$'\t'"$relpath")
+}
+
+install_manifest_emit() {
+  # Write $TARGET/.claude/.install-manifest.json grouping registered paths
+  # by component, with commit SHA and timestamp.
+  local out="$TARGET/.claude/.install-manifest.json"
+  local ts; ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  mkdir -p "$TARGET/.claude"
+  # Build {comp: [paths...]} via jq from the entries array.
+  local jq_input
+  jq_input=$(printf '%s\n' "${INSTALL_MANIFEST_ENTRIES[@]:-}" | jq -R -s '
+    split("\n")
+    | map(select(length > 0))
+    | map(split("\t") | {comp: .[0], path: .[1]})
+    | group_by(.comp)
+    | map({key: .[0].comp, value: {paths: map(.path)}})
+    | from_entries
+  ')
+  # Attach the commit SHA from MANIFEST.yaml for each component (and "<self>" pass-through).
+  local comps; comps=$(echo "$jq_input" | jq -r 'keys[]')
+  for c in $comps; do
+    local sha; sha=$(yq_get ".components.\"$c\".commit")
+    jq_input=$(echo "$jq_input" | jq --arg c "$c" --arg sha "$sha" '.[$c].commit = $sha')
+  done
+  echo "$jq_input" | jq --arg ts "$ts" --argjson tier "$TIER" '{
+    schema_version: "1.0",
+    installed_at: $ts,
+    tier: $tier,
+    components: .
+  }' > "$out"
+  echo "    ✓ manifest written to .claude/.install-manifest.json"
+}
+
 # ---------- runtime deps ----------
 for dep in git awk sed; do
   command -v "$dep" >/dev/null 2>&1 || { echo "FATAL: $dep required" >&2; exit 2; }
