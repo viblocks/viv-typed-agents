@@ -78,6 +78,52 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MANIFEST="$REPO_ROOT/MANIFEST.yaml"
 [ -f "$MANIFEST" ] || { echo "FATAL: MANIFEST.yaml not found at $MANIFEST" >&2; exit 2; }
 
+# ---- Install manifest (for uninstall) ----
+# As each component deploys, register the destination paths it owns.
+# Paths are relative to $TARGET. The manifest is written at the end.
+declare -a INSTALL_MANIFEST_ENTRIES  # one "comp<TAB>relpath" per line
+
+install_manifest_register() {
+  local comp="$1" relpath="$2"
+  # Strip leading/trailing slash and collapse internal duplicates.
+  # MANIFEST.yaml target_path entries end in '/', so naive concat produces '//'.
+  # Use sed because bash 3.2 (macOS default) mis-handles ${var//\/\//\/}.
+  relpath="${relpath#/}"; relpath="${relpath%/}"
+  relpath=$(printf '%s' "$relpath" | sed 's|//*|/|g')
+  INSTALL_MANIFEST_ENTRIES+=("$comp"$'\t'"$relpath")
+}
+
+install_manifest_emit() {
+  # Write $TARGET/.claude/.install-manifest.json grouping registered paths
+  # by component, with commit SHA and timestamp.
+  local out="$TARGET/.claude/.install-manifest.json"
+  local ts; ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  mkdir -p "$TARGET/.claude"
+  # Build {comp: [paths...]} via jq from the entries array.
+  local jq_input
+  jq_input=$(printf '%s\n' "${INSTALL_MANIFEST_ENTRIES[@]:-}" | jq -R -s '
+    split("\n")
+    | map(select(length > 0))
+    | map(split("\t") | {comp: .[0], path: .[1]})
+    | group_by(.comp)
+    | map({key: .[0].comp, value: {paths: map(.path)}})
+    | from_entries
+  ')
+  # Attach the commit SHA from MANIFEST.yaml for each component (and "<self>" pass-through).
+  local comps; comps=$(echo "$jq_input" | jq -r 'keys[]')
+  for c in $comps; do
+    local sha; sha=$(yq_get ".components.\"$c\".commit")
+    jq_input=$(echo "$jq_input" | jq --arg c "$c" --arg sha "$sha" '.[$c].commit = $sha')
+  done
+  echo "$jq_input" | jq --arg ts "$ts" --argjson tier "$TIER" '{
+    schema_version: "1.0",
+    installed_at: $ts,
+    tier: $tier,
+    components: .
+  }' > "$out"
+  echo "    ✓ manifest written to .claude/.install-manifest.json"
+}
+
 # ---------- runtime deps ----------
 for dep in git awk sed; do
   command -v "$dep" >/dev/null 2>&1 || { echo "FATAL: $dep required" >&2; exit 2; }
@@ -197,6 +243,7 @@ for comp in $(selected_components); do
     mkdir -p "$TARGET/$SELF_TARGET_REL"
     cp -R "$SELF_SRC/." "$TARGET/$SELF_TARGET_REL/"
     find "$TARGET/$SELF_TARGET_REL" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
+    install_manifest_register "$comp" "$SELF_TARGET_REL"
     echo "    ✓ copied from $SELF_SRC"
     continue
   fi
@@ -240,6 +287,7 @@ for comp in $(selected_components); do
           found=$(find "$CLONE_DIR" -maxdepth 3 -type d -name "$skill" -not -path "*/.git/*" | head -1)
           if [ -n "$found" ]; then
             cp -r "$found" "$DEST/"
+            install_manifest_register "$comp" "$TARGET_PATH/$skill/"
             echo "    + skill: $skill"
           else
             echo "    ! skill not found: $skill" >&2
@@ -253,6 +301,7 @@ for comp in $(selected_components); do
             *)
               if [ -d "$sub" ]; then
                 cp -r "$sub" "$DEST/"
+                install_manifest_register "$comp" "$TARGET_PATH/$name/"
               fi
               ;;
           esac
@@ -274,6 +323,7 @@ for comp in $(selected_components); do
                   -not -path "*/architecture/*" | head -1)
           if [ -n "$found" ]; then
             cp "$found" "$DEST/"
+            install_manifest_register "$comp" "$TARGET_PATH/${agent}.md"
             echo "    + agent: $agent"
           else
             echo "    ! agent not found: $agent" >&2
@@ -281,13 +331,16 @@ for comp in $(selected_components); do
         done
       else
         # All .md files inside domain subfolders. Skip _shared/, architecture/, repo README.
-        find "$CLONE_DIR" -maxdepth 3 -name '*.md' -type f \
-          -not -path "*/.git/*" \
-          -not -path "*/_shared/*" \
-          -not -path "*/architecture/*" \
-          -not -path "$CLONE_DIR/README.md" \
-          -not -path "$CLONE_DIR/CLAUDE.md" \
-          -exec cp {} "$DEST/" \;
+        while IFS= read -r src; do
+          [ -f "$src" ] || continue
+          cp "$src" "$DEST/"
+          install_manifest_register "$comp" "$TARGET_PATH/$(basename "$src")"
+        done < <(find "$CLONE_DIR" -maxdepth 3 -name '*.md' -type f \
+                  -not -path "*/.git/*" \
+                  -not -path "*/_shared/*" \
+                  -not -path "*/architecture/*" \
+                  -not -path "$CLONE_DIR/README.md" \
+                  -not -path "$CLONE_DIR/CLAUDE.md")
         # Drop any top-level README that snuck in (find -not -path with $CLONE_DIR/README.md
         # only excludes the literal path; find-rel may still match).
         rm -f "$DEST/README.md" "$DEST/CLAUDE.md" 2>/dev/null || true
@@ -302,21 +355,31 @@ for comp in $(selected_components); do
         # Fix the relative $schema reference for the new location.
         sed -i.bak 's|"\$schema": "../schema/|"$schema": "./schema/|' "$DEST/routing-table.json"
         rm -f "$DEST/routing-table.json.bak"
+        install_manifest_register "$comp" "$TARGET_PATH/routing-table.json"
       elif [ -f "$CLONE_DIR/routing-table.template.json" ]; then
         cp "$CLONE_DIR/routing-table.template.json" "$DEST/routing-table.json"
+        install_manifest_register "$comp" "$TARGET_PATH/routing-table.json"
       fi
-      [ -d "$CLONE_DIR/schema" ] && cp -r "$CLONE_DIR/schema" "$DEST/"
-      [ -f "$CLONE_DIR/NAMING.md" ] && cp "$CLONE_DIR/NAMING.md" "$DEST/"
+      if [ -d "$CLONE_DIR/schema" ]; then
+        cp -r "$CLONE_DIR/schema" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/schema/"
+      fi
+      if [ -f "$CLONE_DIR/NAMING.md" ]; then
+        cp "$CLONE_DIR/NAMING.md" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/NAMING.md"
+      fi
       ;;
     viv-workflows)
       # Flatten rules/<name>.template.json → workflows/<name>.json (the path
       # workflow-loader expects). Schemas kept under schemas/ for validation.
       mkdir -p "$DEST/schemas"
+      install_manifest_register "$comp" "$TARGET_PATH/schemas/"
       if [ -d "$CLONE_DIR/rules" ]; then
         for f in "$CLONE_DIR"/rules/*.json; do
           [ -f "$f" ] || continue
           base=$(basename "$f" .template.json)
           cp "$f" "$DEST/${base}.json"
+          install_manifest_register "$comp" "$TARGET_PATH/${base}.json"
         done
       fi
       if [ -d "$CLONE_DIR/schemas" ]; then
@@ -326,12 +389,24 @@ for comp in $(selected_components); do
       if [ -d "$CLONE_DIR/examples/viblocks-style" ]; then
         mkdir -p "$DEST/examples/viblocks-style"
         cp -r "$CLONE_DIR"/examples/viblocks-style/* "$DEST/examples/viblocks-style/"
+        install_manifest_register "$comp" "$TARGET_PATH/examples/"
       fi
       ;;
     viv-orchestration-rules)
       # CLAUDE.template.md at root + playbooks/ at root. Skip repo metadata.
-      [ -f "$CLONE_DIR/CLAUDE.template.md" ] && cp "$CLONE_DIR/CLAUDE.template.md" "$DEST/"
-      [ -d "$CLONE_DIR/playbooks" ] && cp -r "$CLONE_DIR/playbooks" "$DEST/"
+      if [ -f "$CLONE_DIR/CLAUDE.template.md" ]; then
+        cp "$CLONE_DIR/CLAUDE.template.md" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/CLAUDE.template.md"
+      fi
+      if [ -d "$CLONE_DIR/playbooks" ]; then
+        cp -r "$CLONE_DIR/playbooks" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/playbooks/"
+      fi
+      # Newer revisions of viv-orchestration-rules also ship a rules/ subdir.
+      if [ -d "$CLONE_DIR/rules" ]; then
+        cp -r "$CLONE_DIR/rules" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/rules/"
+      fi
       ;;
     viv-hooks)
       # Flatten hooks/<type>/* directly under DEST so paths are .claude/hooks/<type>/...
@@ -340,6 +415,7 @@ for comp in $(selected_components); do
         for sub in "$CLONE_DIR"/hooks/*; do
           [ -e "$sub" ] || continue
           cp -r "$sub" "$DEST/"
+          install_manifest_register "$comp" "$TARGET_PATH/$(basename "$sub")/"
         done
       fi
       # IMPORTANT: lib/ goes to .claude/lib/ (sibling of hooks/) — NOT inside hooks/.
@@ -348,14 +424,22 @@ for comp in $(selected_components); do
       # upstream layout where lib is sibling of hooks/).
       if [ -d "$CLONE_DIR/lib" ]; then
         cp -r "$CLONE_DIR/lib" "$TARGET/.claude/"
+        install_manifest_register "$comp" ".claude/lib/"
       fi
-      [ -f "$CLONE_DIR/settings.json.fragment" ] && cp "$CLONE_DIR/settings.json.fragment" "$DEST/"
+      if [ -f "$CLONE_DIR/settings.json.fragment" ]; then
+        cp "$CLONE_DIR/settings.json.fragment" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/settings.json.fragment"
+      fi
       # Make hook scripts executable.
       find "$DEST" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
       find "$TARGET/.claude/lib" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
       ;;
   esac
 done
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  install_manifest_emit
+fi
 
 echo ""
 echo "============================================"
