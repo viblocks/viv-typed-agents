@@ -39,8 +39,8 @@ components:
 
   viv-workflows:
     repo: https://github.com/viblocks/viv-workflows
-    commit: db9e117
-    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings, issue-tracker-adapter-contract). Decoupled from AI-DLC per ADR-RD-012.
+    commit: 419b659
+    role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings). Decoupled from AI-DLC per ADR-RD-012.
     target_path: .claude/workflows/
     tiers: [3, 4, 5]
     requires: [viv-agents]
@@ -55,7 +55,7 @@ components:
 
   viv-orchestration-rules:
     repo: https://github.com/viblocks/viv-orchestration-rules
-    commit: 137d2c1
+    commit: d3cbfe5
     role: typed-agents-core behavioral rules (CLAUDE.md template + dispatch protocols + IRON LAW + chain orchestration). AI-DLC content split out per ADR-RD-012 to viblocks/aidlc-orchestrator (separate dependency-inverted product).
     target_path: .claude/orchestration/
     tiers: [5]
