@@ -85,6 +85,32 @@ echo "  manifest: $MANIFEST_PATH"
 echo "============================================"
 echo ""
 
-# (Subsequent tasks fill in resolution + execution.)
-echo "(plan-building not yet implemented — TODO Task 14+)"
+# Resolve which components to remove.
+ALL_COMPONENTS=$(jq -r '.components | keys[]' "$MANIFEST_PATH")
+SELECTED_COMPONENTS=""
+
+if [ -n "$COMPONENTS_FILTER" ]; then
+  IFS=, read -ra requested <<< "$COMPONENTS_FILTER"
+  for req in "${requested[@]}"; do
+    req="$(echo "$req" | xargs)"
+    if echo "$ALL_COMPONENTS" | grep -qx "$req"; then
+      SELECTED_COMPONENTS+="$req"$'\n'
+    else
+      echo "  ! component '$req' not in install manifest — skipping" >&2
+    fi
+  done
+else
+  SELECTED_COMPONENTS="$ALL_COMPONENTS"
+fi
+
+SELECTED_COMPONENTS=$(echo "$SELECTED_COMPONENTS" | grep -v '^$' || true)
+
+if [ -z "$SELECTED_COMPONENTS" ]; then
+  echo "No components selected for removal."
+  exit 0
+fi
+
+# (Subsequent tasks fill in plan + execution.)
+echo "Selected components:"
+echo "$SELECTED_COMPONENTS" | sed 's/^/  - /'
 exit 0
