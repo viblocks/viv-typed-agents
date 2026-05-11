@@ -55,7 +55,7 @@ components:
 
   viv-orchestration-rules:
     repo: https://github.com/viblocks/viv-orchestration-rules
-    commit: d3cbfe5
+    commit: 336fa5d
     role: typed-agents-core behavioral rules (CLAUDE.md template + dispatch protocols + IRON LAW + chain orchestration). AI-DLC content split out per ADR-RD-012 to viblocks/aidlc-orchestrator (separate dependency-inverted product).
     target_path: .claude/orchestration/
     tiers: [5]
