@@ -412,6 +412,7 @@ for comp in $(selected_components); do
         for sub in "$CLONE_DIR"/hooks/*; do
           [ -e "$sub" ] || continue
           cp -r "$sub" "$DEST/"
+          install_manifest_register "$comp" "$TARGET_PATH/$(basename "$sub")/"
         done
       fi
       # IMPORTANT: lib/ goes to .claude/lib/ (sibling of hooks/) — NOT inside hooks/.
@@ -420,8 +421,12 @@ for comp in $(selected_components); do
       # upstream layout where lib is sibling of hooks/).
       if [ -d "$CLONE_DIR/lib" ]; then
         cp -r "$CLONE_DIR/lib" "$TARGET/.claude/"
+        install_manifest_register "$comp" ".claude/lib/"
       fi
-      [ -f "$CLONE_DIR/settings.json.fragment" ] && cp "$CLONE_DIR/settings.json.fragment" "$DEST/"
+      if [ -f "$CLONE_DIR/settings.json.fragment" ]; then
+        cp "$CLONE_DIR/settings.json.fragment" "$DEST/"
+        install_manifest_register "$comp" "$TARGET_PATH/settings.json.fragment"
+      fi
       # Make hook scripts executable.
       find "$DEST" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
       find "$TARGET/.claude/lib" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
