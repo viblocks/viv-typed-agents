@@ -136,6 +136,71 @@ echo "$RUN_ERR" | grep -q "only valid with --check" \
   || ko "expected usage error message, got: $RUN_ERR"
 
 echo
+echo "--- --all: bumps behind components, skips current and self-hosted ---"
+
+run_upgrade --all
+[ "$RUN_RC" -eq 0 ] && ok "exit 0" || ko "expected exit 0, got $RUN_RC"
+
+echo "$RUN_OUT" | grep -q "comp-behind.*bbbbbbb.*ddddddd" \
+  && ok "bumps comp-behind" \
+  || ko "expected comp-behind bump, got: $RUN_OUT"
+echo "$RUN_OUT" | grep -q "comp-also-behind.*ccccccc.*eeeeeee" \
+  && ok "bumps comp-also-behind" \
+  || ko "expected comp-also-behind bump"
+echo "$RUN_OUT" | grep -q "comp-current: already at aaaaaaa" \
+  && ok "leaves comp-current alone" \
+  || ko "expected comp-current skip"
+echo "$RUN_OUT" | grep -q "comp-self: self-hosted" \
+  && ok "skips comp-self" \
+  || ko "expected comp-self skip"
+echo "$RUN_OUT" | grep -q "Bumped 2, already-current 1, skipped 1" \
+  && ok "summary line correct" \
+  || ko "expected summary 'Bumped 2, already-current 1, skipped 1', got: $RUN_OUT"
+
+# MANIFEST verification.
+echo "$RUN_MANIFEST" | grep -q "commit: ddddddd" \
+  && ok "comp-behind SHA written to MANIFEST" \
+  || ko "comp-behind SHA missing from MANIFEST"
+echo "$RUN_MANIFEST" | grep -q "commit: eeeeeee" \
+  && ok "comp-also-behind SHA written to MANIFEST" \
+  || ko "comp-also-behind SHA missing from MANIFEST"
+echo "$RUN_MANIFEST" | grep -q "commit: aaaaaaa" \
+  && ok "comp-current SHA preserved" \
+  || ko "comp-current SHA missing"
+echo "$RUN_MANIFEST" | grep -qE "commit: <self>|commit: '<self>'" \
+  && ok "comp-self left as <self>" \
+  || ko "comp-self was modified"
+
+# released_at should be today.
+TODAY=$(date -u +%Y-%m-%d)
+echo "$RUN_MANIFEST" | grep -q "released_at: .*$TODAY" \
+  && ok "released_at bumped to today" \
+  || ko "released_at not updated to $TODAY (manifest: $RUN_MANIFEST)"
+
+# Commit message line.
+echo "$RUN_OUT" | grep -q "bump 2 components to latest main" \
+  && ok "commit message reflects 2 components" \
+  || ko "expected multi-component commit message"
+
+echo
+echo "--- --all --to is rejected ---"
+
+run_upgrade --all --to v1.0.0
+[ "$RUN_RC" -eq 2 ] && ok "exit 2 (usage error)" || ko "expected exit 2"
+echo "$RUN_ERR" | grep -q "does not support --to" \
+  && ok "rejects --to with --all" \
+  || ko "expected --to rejection, got: $RUN_ERR"
+
+echo
+echo "--- --all <component> is rejected ---"
+
+run_upgrade --all comp-behind
+[ "$RUN_RC" -eq 2 ] && ok "exit 2 (usage error)" || ko "expected exit 2"
+echo "$RUN_ERR" | grep -q "mutually exclusive with a component" \
+  && ok "rejects positional component with --all" \
+  || ko "expected mutual-exclusion error"
+
+echo
 echo "--- summary ---"
 echo "  PASS: $PASS"
 echo "  FAIL: $FAIL"
