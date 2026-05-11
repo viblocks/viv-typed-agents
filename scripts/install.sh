@@ -240,6 +240,7 @@ for comp in $(selected_components); do
     mkdir -p "$TARGET/$SELF_TARGET_REL"
     cp -R "$SELF_SRC/." "$TARGET/$SELF_TARGET_REL/"
     find "$TARGET/$SELF_TARGET_REL" -name '*.sh' -type f -exec chmod +x {} \; 2>/dev/null || true
+    install_manifest_register "$comp" "$SELF_TARGET_REL"
     echo "    ✓ copied from $SELF_SRC"
     continue
   fi
