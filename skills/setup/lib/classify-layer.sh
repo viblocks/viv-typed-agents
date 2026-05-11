@@ -27,16 +27,14 @@ while IFS= read -r skill_file; do
   layer=$(echo "$fm" | yq eval '.detection.layer' -)
   [ "$layer" = "null" ] && continue
 
-  # Check entry_files and config_files: presence of any file at folder root.
-  # If either type matches, set hit=1 and STOP checking the other indicators
-  # for this skill (short-circuit; prevents over-matching via coarser globs).
+  # Check entry_files and config_files first: presence of any named file at
+  # folder root. If either matches, this skill is confirmed and we can skip
+  # the file_globs fallback.
   hit=0
-  declared_strong=0
   for key in entry_files config_files; do
     count=$(echo "$fm" | yq eval ".detection.$key | length" - 2>/dev/null || echo 0)
     [ "$count" = "null" ] && count=0
     if [ "$count" -gt 0 ]; then
-      declared_strong=1
       for i in $(seq 0 $((count-1))); do
         fname=$(echo "$fm" | yq eval ".detection.$key[$i]" -)
         if [ -f "$folder/$fname" ]; then hit=1; break; fi
@@ -45,18 +43,23 @@ while IFS= read -r skill_file; do
     [ "$hit" = "1" ] && break
   done
 
-  # ONLY fall through to file_globs if the skill declared NO entry_files /
-  # config_files (i.e. globs are the sole signal). If strong signals were
-  # declared but did not match, skip this skill — globs are too coarse to
-  # use as a backup (e.g. *.ts in a Vite frontend would over-match NestJS).
-  if [ "$hit" = "0" ] && [ "$declared_strong" = "0" ]; then
+  # Fallback to file_globs whenever entry_files/config_files did not match,
+  # regardless of whether they were declared. We use a portable find-based
+  # glob match (see below) so patterns like src/**/*.module.ts mean what they
+  # say (proper recursion within a subdirectory), not just "any .ts file"
+  # which would over-match.
+  if [ "$hit" = "0" ]; then
     count=$(echo "$fm" | yq eval ".detection.file_globs | length" - 2>/dev/null || echo 0)
     [ "$count" = "null" ] && count=0
     if [ "$count" -gt 0 ]; then
      for i in $(seq 0 $((count-1))); do
       glob=$(echo "$fm" | yq eval ".detection.file_globs[$i]" -)
-      ext="${glob##*.}"
-      if [ -n "$ext" ] && find "$folder" -type f -name "*.$ext" -print -quit 2>/dev/null | grep -q .; then
+      # Portable glob match (works on macOS bash 3.2, no globstar required).
+      # Convert glob to a find(1) -path pattern. find's `*` already matches
+      # across `/`, so a recursive `**/` collapses to nothing — `src/**/*.x`
+      # becomes `src/*.x`, which `-path` then matches at any depth.
+      pattern=$(printf '%s' "$glob" | sed -e 's|/\*\*/|/|g' -e 's|^\*\*/||' -e 's|/\*\*$||' -e 's|\*\*|*|g')
+      if find "$folder" -type f -path "$folder/$pattern" -print -quit 2>/dev/null | grep -q .; then
         hit=1; break
       fi
      done
