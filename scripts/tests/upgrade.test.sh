@@ -207,6 +207,15 @@ run_upgrade --check --all
 [ "$RUN_RC" -eq 2 ] && ok "exit 2 (usage error)" || ko "expected exit 2"
 
 echo
+echo "--- --check with unknown component fails loudly ---"
+
+run_upgrade --check nonexistent-comp
+[ "$RUN_RC" -eq 2 ] && ok "exit 2 (usage error)" || ko "expected exit 2, got $RUN_RC"
+echo "$RUN_ERR" | grep -q "not in MANIFEST" \
+  && ok "reports component not in manifest" \
+  || ko "expected 'not in MANIFEST', got: $RUN_ERR"
+
+echo
 echo "--- summary ---"
 echo "  PASS: $PASS"
 echo "  FAIL: $FAIL"

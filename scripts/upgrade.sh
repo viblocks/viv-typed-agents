@@ -69,6 +69,9 @@ YAML_READER=""
 if command -v yq >/dev/null 2>&1; then
   YAML_READER="yq"
 elif command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
+  command -v jq >/dev/null 2>&1 || {
+    echo "FATAL: python+PyYAML path requires jq (install jq or use yq instead)" >&2; exit 2;
+  }
   YAML_READER="python"
 else
   echo "FATAL: need either yq OR python3 with PyYAML" >&2; exit 2;
@@ -179,6 +182,13 @@ case "$MODE" in
     echo "  git add MANIFEST.yaml && git commit -m \"deps($COMP): bump to $NEW_SHA\""
     ;;
   check)
+    if [ -n "$COMP" ]; then
+      repo_check=$(yq_get ".components.\"$COMP\".repo" 2>/dev/null || true)
+      if [ -z "$repo_check" ] || [ "$repo_check" = "null" ]; then
+        echo "FATAL: component $COMP not in MANIFEST" >&2
+        exit 2
+      fi
+    fi
     echo "==> Checking components against upstream main..."
     echo
     printf "  %-28s %-10s %-10s %s\n" "COMPONENT" "PINNED" "UPSTREAM" "STATUS"
