@@ -1,0 +1,33 @@
+schema_version: "1.0"
+strategy_version: "0.1.0"
+released_at: "2026-01-01"
+
+components:
+
+  comp-current:
+    repo: https://fake.test/comp-current
+    commit: aaaaaaa
+    role: fixture component already at upstream main
+    target_path: .claude/comp-current/
+    tiers: [5]
+
+  comp-behind:
+    repo: https://fake.test/comp-behind
+    commit: bbbbbbb
+    role: fixture component behind upstream main
+    target_path: .claude/comp-behind/
+    tiers: [5]
+
+  comp-also-behind:
+    repo: https://fake.test/comp-also-behind
+    commit: ccccccc
+    role: another fixture component behind upstream main
+    target_path: .claude/comp-also-behind/
+    tiers: [5]
+
+  comp-self:
+    repo: <self>
+    commit: <self>
+    role: self-hosted fixture component (should be skipped)
+    target_path: .claude/comp-self/
+    tiers: [5]
