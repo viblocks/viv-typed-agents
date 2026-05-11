@@ -179,5 +179,35 @@ else
 fi
 
 echo
+echo "--- unmerge-settings.sh ---"
+if [ -x lib/unmerge-settings.sh ]; then
+  TMP=$(mktemp -d)
+  echo '{"theme":"dark","hooks":{"PreToolUse":[{"name":"deny-class-a"},{"name":"user-custom-hook"}]}}' > "$TMP/settings.json"
+  echo '{"hooks":{"PreToolUse":[{"name":"deny-class-a"}]}}' > "$TMP/fragment.json"
+  bash lib/unmerge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  theme=$(jq -r '.theme' "$TMP/settings.json")
+  hooks_len=$(jq '.hooks.PreToolUse | length' "$TMP/settings.json")
+  hook_name=$(jq -r '.hooks.PreToolUse[0].name' "$TMP/settings.json")
+  if [ "$theme" = "dark" ] && [ "$hooks_len" = "1" ] && [ "$hook_name" = "user-custom-hook" ]; then
+    ok "unmerge: user keys preserved + fragment entry removed"
+  else
+    ko "unmerge failed (theme=$theme hooks_len=$hooks_len hook_name=$hook_name)"
+  fi
+
+  prev=$(md5 -q "$TMP/settings.json" 2>/dev/null || md5sum "$TMP/settings.json" | cut -d' ' -f1)
+  bash lib/unmerge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  next=$(md5 -q "$TMP/settings.json" 2>/dev/null || md5sum "$TMP/settings.json" | cut -d' ' -f1)
+  [ "$prev" = "$next" ] && ok "unmerge idempotent" || ko "unmerge not idempotent"
+
+  echo '{"hooks":{"PreToolUse":[{"name":"deny-class-a"}]}}' > "$TMP/settings.json"
+  bash lib/unmerge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  [ ! -f "$TMP/settings.json" ] && ok "unmerge: empty {} → file removed" || ko "empty unmerge failed"
+
+  rm -rf "$TMP"
+else
+  ko "lib/unmerge-settings.sh not found"
+fi
+
+echo
 echo "Result: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
