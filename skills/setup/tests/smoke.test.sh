@@ -130,6 +130,39 @@ if [ -x lib/merge-settings.sh ]; then
   theme=$(jq -r '.theme' "$TMP/settings.json")
   hooks=$(jq '.hooks.PreToolUse | length' "$TMP/settings.json")
   [ "$theme" = "dark" ] && [ "$hooks" = "1" ] && ok "merge preserves user keys and adds hook" || ko "theme=$theme hooks=$hooks"
+
+  # _-prefixed keys are metadata: must NOT be merged into the consumer.
+  echo '{"theme":"dark"}' > "$TMP/settings.json"
+  cat > "$TMP/fragment.json" <<'EOF'
+{
+  "_comment": "fragment metadata that must not leak",
+  "env": {"_internal": "metadata too", "REAL_KEY": "value"},
+  "hooks": {"PreToolUse": [{"name": "h1"}]}
+}
+EOF
+  bash lib/merge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  has_comment=$(jq 'has("_comment")' "$TMP/settings.json")
+  has_internal=$(jq '.env | has("_internal")' "$TMP/settings.json")
+  has_real=$(jq -r '.env.REAL_KEY // ""' "$TMP/settings.json")
+  has_hook=$(jq '.hooks.PreToolUse | length' "$TMP/settings.json")
+  if [ "$has_comment" = "false" ] && [ "$has_internal" = "false" ] \
+     && [ "$has_real" = "value" ] && [ "$has_hook" = "1" ]; then
+    ok "merge filters _-prefixed metadata at all depths"
+  else
+    ko "merge leaked metadata (_comment=$has_comment _internal=$has_internal REAL=$has_real hooks=$has_hook)"
+  fi
+
+  # Fresh-file path (no existing target) should also filter _-prefixed keys.
+  rm -f "$TMP/settings.json"
+  bash lib/merge-settings.sh "$TMP/settings.json" "$TMP/fragment.json"
+  has_comment_fresh=$(jq 'has("_comment")' "$TMP/settings.json")
+  has_internal_fresh=$(jq '.env | has("_internal")' "$TMP/settings.json")
+  if [ "$has_comment_fresh" = "false" ] && [ "$has_internal_fresh" = "false" ]; then
+    ok "merge filters _-prefixed metadata on fresh-file copy"
+  else
+    ko "fresh-file merge leaked metadata"
+  fi
+
   rm -rf "$TMP"
 else
   ko "lib/merge-settings.sh not found"
