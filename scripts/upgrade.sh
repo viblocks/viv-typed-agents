@@ -214,6 +214,7 @@ case "$MODE" in
     echo
     # Stage changes in tempfile for atomic write.
     MANIFEST_TMP="$MANIFEST.tmp.$$"
+    trap 'rm -f "$MANIFEST_TMP"' EXIT
     cp "$MANIFEST" "$MANIFEST_TMP"
     bumped=0; current=0; skipped=0
     commit_lines=""
