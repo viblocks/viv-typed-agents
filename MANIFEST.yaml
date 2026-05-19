@@ -4,8 +4,11 @@
 # pins each internal component to a specific commit SHA. scripts/install.sh
 # reads this manifest to deploy components to the consumer's project.
 #
-# Bumping a component's commit:
-#   ./scripts/upgrade.sh <component-name>
+# Bumping component commits:
+#   ./scripts/upgrade.sh <component-name>          # bump one component to main
+#   ./scripts/upgrade.sh <component-name> --to <ref>  # bump one component to a ref
+#   ./scripts/upgrade.sh --all                     # bump every drifted component
+#   ./scripts/upgrade.sh --check [--exit-code]     # report drift (CI: --exit-code returns 1 on drift)
 #   git commit -am "deps(<component>): bump to <new-sha>"
 
 schema_version: "1.0"
