@@ -10,11 +10,11 @@
 
 schema_version: "1.0"
 strategy_version: "0.1.0"
-released_at: "2026-05-11"
+released_at: "2026-05-19"
 components:
   viv-skills:
     repo: https://github.com/viblocks/viv-skills
-    commit: b4e2e36
+    commit: 8e1f1c4
     role: knowledge content (domain patterns, anti-patterns, references)
     target_path: .claude/skills/
     tiers: [1, 2, 3, 4, 5]
