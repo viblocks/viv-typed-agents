@@ -232,6 +232,59 @@ The redesign introduces three explicit hook types (replacing viblocks' asymmetri
 
 This is **ADR-RD-006**.
 
+### 3.3 Per-Item Atomicity Contract
+
+Workers in this network are **ephemeral**: a dispatch terminates abruptly when its TTL expires (currently 600s). A dispatch carrying `N > 1` items can leave the system in three states, only one of which is recoverable without manual remediation:
+
+| State | Items 1..K-1 | Item K | Items K+1..N | Recovery |
+|---|---|---|---|---|
+| **1. Clean between items** | valid | not started | not started | Resume from K. Cheap. |
+| **2. Mid-item truncation** | valid | partially written | not started | **Manual.** Expensive. |
+| **3. Validation interrupted** | written but not verified | written but not verified | written but not verified | Indeterminate — green-by-construction, not green-confirmed. |
+
+Per [viv-orchestration-rules ttl-batch-sizing](https://github.com/viblocks/viv-orchestration-rules/blob/main/rules/common/ttl-batch-sizing.md), every typed agent dispatched with `N > 1` MUST implement two phases per item:
+
+1. **`commit_item(i)`** — persist item `i` to durable state (file written, transaction committed, message acked) **before** item `i+1` begins. The unit of atomicity is the item, not the batch. Collapses state-2 into state-1.
+2. **`validate_item(i)`** — run item `i`'s verification (lint/test/typecheck/whatever applies) inside the same dispatch, immediately after the item is produced. No deferral to end-of-batch. Eliminates state-3.
+
+#### Failure semantics for `validate_item(i)`
+
+When validation of item `i` fails, the typed agent **MUST** apply one of three policies (declared per-agent in its system prompt, never decided ad-hoc):
+
+| Policy | Semantics | When to use |
+|---|---|---|
+| **abort** | Stop the dispatch. Items 1..i-1 already committed remain valid; item `i` is rolled back. Surface a structured error to the orchestrator. | Default. Use when items have dependencies — a broken item invalidates downstream items. |
+| **skip** | Roll back item `i`, log the failure, continue with item `i+1`. Surface skipped items in evidence. | Use when items are independent and partial completion is preferable to no completion (e.g., codegen of N unrelated files). |
+| **retry** | Re-attempt item `i` once with the validation error as additional context. On second failure, fall back to **abort** (never to **skip**). | Use sparingly — only when transient failures are expected and re-attempt is cheap. |
+
+The orchestrator's evidence verification (per `subagent-dispatch-contract.md`) inspects the evidence block to confirm which policy ran and whether the contract was honored.
+
+#### What `commit_item(i)` means by artifact category
+
+| Artifact category | Atomic commit operation |
+|---|---|
+| File create/modify | Write to `path.tmp`, validate, then `mv path.tmp path`. The OS rename is atomic per POSIX. Never write to `path` directly. |
+| Multi-file change for one item | Write all files to `.tmp` siblings, validate all, then rename all. If any rename fails, surface the failure but the items already renamed remain valid. |
+| Schema migration | Per-statement commit within a transaction with `SAVEPOINT` per item. Rollback at item boundary, never at batch boundary. |
+| Message production | One message per item, acked individually. Never batch multiple items into a single delivery. |
+
+The categories above are illustrative. The invariant is: **at the moment dispatch terminates (for any reason), the persisted state of items 1..K-1 must be indistinguishable from the state that would have existed if the dispatch had cleanly returned after item K-1.**
+
+#### Where the contract is enforced
+
+| Layer | Enforcement | Owner |
+|---|---|---|
+| Policy | Prose rule | [`viv-orchestration-rules#3`](https://github.com/viblocks/viv-orchestration-rules/issues/3) (landed) |
+| Agent contract (this section) | SPEC prescriptive | This repo |
+| Pre-dispatch cap (orchestrator) | Mechanical | [`viv-aidlc-orchestrator#12`](https://github.com/viblocks/viv-aidlc-orchestrator/issues/12) |
+| Workflow audit (existing batches) | Schema lint | [`viv-workflows#2`](https://github.com/viblocks/viv-workflows/issues/2) |
+
+#### Reference implementation
+
+The reference agent prompt fragment lives at [`docs/per-item-atomicity-contract.md`](docs/per-item-atomicity-contract.md). Typed agents in [`viv-agents`](https://github.com/viblocks/viv-agents) embed it (or an equivalent) in their system prompts. The reference pattern is exercised under simulated abrupt termination by [`scripts/tests/per-item-atomicity.test.sh`](scripts/tests/per-item-atomicity.test.sh).
+
+This is **ADR-RD-013**.
+
 ---
 
 ## 4. SOLID Principles Applied
@@ -287,6 +340,7 @@ Each decision is documented in `architecture/decisions/`. Summary:
 | RD-007 | Defer dispatch validation from Agent dispatch to Edit/Write time | Eliminates prompt-grep heuristic; deterministic at file_path time |
 | RD-008 | Pure descriptor pattern: only `viv-hooks` contains executable code | Coherent with viv-skills/viv-agents established pattern |
 | RD-009 | Preserve viblocks' objectives; redesign architecture per SOLID | This is a redesign, not an extraction |
+| RD-013 | Per-item atomicity contract: `commit_item(i)` + `validate_item(i)` per item | TTL truncation produces unrecoverable state without per-item atomicity; commit-per-batch leaves items partially written when dispatch is killed mid-item |
 
 ---
 
@@ -436,6 +490,9 @@ Items not resolved by this spec; deferred to per-repo ADRs.
 - **Post-implementation chain:** the sequence of gates after an implementer completes (verification → reviewer → security → commit).
 - **Skill:** packaged domain knowledge, declared in `viv-skills`. Example: `nestjs-backend`, `crypto-backend`.
 - **Tier:** adoption level in the composition guide. T1 is minimum (skills only); T5 is full system.
+- **`commit_item(i)`:** the phase in a typed agent's per-item loop that atomically persists item `i` to durable state before item `i+1` begins. See Section 3.3.
+- **`validate_item(i)`:** the phase that runs item `i`'s verification inside the same dispatch, immediately after production. See Section 3.3.
+- **Per-item atomicity contract:** the joint requirement of `commit_item(i)` + `validate_item(i)` per item. Documented in Section 3.3, decision in ADR-RD-013.
 
 ## Appendix B — Architectural invariants (cross-cutting)
 
@@ -448,3 +505,4 @@ These properties hold across the system. Violation of any indicates a design reg
 5. **Marker is necessary tech debt.** Documented as such; redesign efforts welcome if Claude Code API evolves.
 6. **External dependencies are referenced, not extracted.** AI-DLC and Superpowers remain external.
 7. **No agent name appears hardcoded outside viv-agents and routing-table.** All other consumers reference agents by lookup, not literal.
+8. **Per-item atomicity holds under abrupt termination.** For any dispatch with `N > 1` items, the persisted state at termination time is indistinguishable from the state after item `K-1`'s clean completion (for some `0 ≤ K ≤ N`). No partially-written items, no unverified items.
