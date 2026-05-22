@@ -13,7 +13,7 @@
 
 schema_version: "1.0"
 strategy_version: "0.1.0"
-released_at: "2026-05-19"
+released_at: "2026-05-22"
 components:
   viv-skills:
     repo: https://github.com/viblocks/viv-skills
@@ -37,7 +37,7 @@ components:
     requires: [viv-agents]
   viv-workflows:
     repo: https://github.com/viblocks/viv-workflows
-    commit: 419b659
+    commit: 04b2870
     role: gate rule data (post-impl, evidence, fix-intent, audit-trail, pairings). Decoupled from AI-DLC per ADR-RD-012.
     target_path: .claude/workflows/
     tiers: [3, 4, 5]
@@ -51,7 +51,7 @@ components:
     requires: [viv-routing, viv-workflows]
   viv-orchestration-rules:
     repo: https://github.com/viblocks/viv-orchestration-rules
-    commit: 336fa5d
+    commit: e035f25
     role: typed-agents-core behavioral rules (CLAUDE.md template + dispatch protocols + IRON LAW + chain orchestration). AI-DLC content split out per ADR-RD-012 to viblocks/aidlc-orchestrator (separate dependency-inverted product).
     target_path: .claude/orchestration/
     tiers: [5]
