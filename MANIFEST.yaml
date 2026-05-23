@@ -13,7 +13,7 @@
 
 schema_version: "1.0"
 strategy_version: "0.1.0"
-released_at: "2026-05-22"
+released_at: "2026-05-23"
 components:
   viv-skills:
     repo: https://github.com/viblocks/viv-skills
@@ -44,7 +44,7 @@ components:
     requires: [viv-agents]
   viv-hooks:
     repo: https://github.com/viblocks/viv-hooks
-    commit: "7495481"
+    commit: "73c0999"
     role: structural enforcement (deny/advisory/refinement/lifecycle hooks)
     target_path: .claude/hooks/
     tiers: [4, 5]
