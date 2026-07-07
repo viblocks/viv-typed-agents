@@ -44,7 +44,7 @@ components:
     requires: [viv-agents]
   viv-hooks:
     repo: https://github.com/viblocks/viv-hooks
-    commit: "bd6a915"
+    commit: "57027f4"
     role: structural enforcement (deny/advisory/refinement/lifecycle hooks)
     target_path: .claude/hooks/
     tiers: [4, 5]
